@@ -51,5 +51,5 @@ def fetch_and_save(csv_path: str, json_url: str):
 if __name__ == '__main__':
     # TODO: 改成你自己抓到的完整 URL
     JSON_URL = 'https://www.hozen.pref.fukui.lg.jp/hozen/yuki/assets/jsons/regulations.json?_=1749553405223'
-    CSV_PATH = r'E:\python_project\contest\fukui_summer\dataset\regulations.csv'
+    CSV_PATH = r'/Users/gary/Documents/project/fukui_summer/dataset/fukui_trans.csv'
     fetch_and_save(CSV_PATH, JSON_URL)
