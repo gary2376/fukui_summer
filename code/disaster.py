@@ -28,8 +28,8 @@ FUKUI_KEYWORD = "福井"
 HEADLESS = True
 
 # 5) 輸出檔案路徑
-GENERAL_CSV = Path(r"E:\python_project\contest\fukui_summer\dataset\quakes_all.csv")
-FUKUI_CSV   = Path(r"E:\python_project\contest\fukui_summer\dataset\quakes_fukui.csv")
+GENERAL_CSV = Path(r"/Users/gary/Documents/project/fukui_summer/dataset/jma_quakes_all.csv")
+FUKUI_CSV   = Path(r"/Users/gary/Documents/project/fukui_summer/dataset/jma_quakes_fukui.csv")
 
 
 async def ensure_csv_files():
@@ -108,13 +108,16 @@ async def scrape_from_jma(existing_general, existing_fukui):
             await browser.close()
             raise RuntimeError(">>> JMA 清單表格只有表頭，沒有實際資料列。")
 
+        # 只抓最近十筆（去掉表頭）
+        recent_rows = rows[1:11]  # 1:11 代表第2到第11列（共10筆）
+
         # 開啟 CSV 以便 append
         gen_file = GENERAL_CSV.open("a", encoding="utf-8-sig", newline="")
         fuk_file = FUKUI_CSV.open("a", encoding="utf-8-sig", newline="")
         gen_writer = csv.writer(gen_file)
         fuk_writer = csv.writer(fuk_file)
 
-        for idx, row in enumerate(rows[1:], start=1):
+        for idx, row in enumerate(recent_rows, start=1):
             cells = await row.query_selector_all("td")
             if len(cells) < 2:
                 continue
