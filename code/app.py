@@ -609,15 +609,7 @@ def index():
                 <b>⏱️ Predict time:</b> {walk_time_min} Minutes<br>
                 """
                 
-                # 在緊急模式下添加路徑規劃按鈕
-                if emergency_mode:
-                    popup_html += f"""
-                    <hr style="margin: 10px 0;">
-                    <button onclick="planRouteToShelter({row['latitude']}, {row['longitude']}, '{row['evaspot_name']}')" 
-                            class="btn btn-primary btn-sm" style="width: 100%;">
-                        🧭 規劃路徑到此避難所
-                    </button>
-                    """
+
                 popup = folium.Popup(popup_html, max_width=300)
                 try:
                     folium.Marker(
@@ -718,27 +710,27 @@ def index():
                 top: 10px; right: 10px; width: 200px; height: auto; 
                 background-color: white; border:2px solid grey; z-index:9999; 
                 font-size:14px; padding: 10px; border-radius: 5px;">
-        <h4 style="margin: 0 0 10px 0; text-align: center;">🛡️ 路徑安全等級</h4>
+        <h4 style="margin: 0 0 10px 0; text-align: center;">🛡️ Path Safety Level</h4>
         <div style="margin: 5px 0;">
             <div style="display: flex; align-items: center; margin: 5px 0;">
                 <div style="width: 20px; height: 20px; border-radius: 50%; background: green; margin-right: 8px;"></div>
-                <span style="font-weight: bold;">高安全</span>
+                <span style="font-weight: bold;">High Safety</span>
             </div>
             <div style="display: flex; align-items: center; margin: 5px 0;">
                 <div style="width: 20px; height: 20px; border-radius: 50%; background: orange; margin-right: 8px;"></div>
-                <span style="font-weight: bold;">中安全</span>
+                <span style="font-weight: bold;">Medium Safety</span>
             </div>
             <div style="display: flex; align-items: center; margin: 5px 0;">
                 <div style="width: 20px; height: 20px; border-radius: 50%; background: red; margin-right: 8px;"></div>
-                <span style="font-weight: bold;">低安全</span>
+                <span style="font-weight: bold;">Low Safety</span>
             </div>
         </div>
         <div style="margin: 10px 0; padding: 5px; background-color: #f0f0f0; border-radius: 3px;">
             <small>
-                <strong>評估標準：</strong><br>
-                • 風險節點數量<br>
-                • 連續風險段<br>
-                • 路徑長度
+                <strong>Evaluation Criteria:</strong><br>
+                • Number of risk nodes<br>
+                • Continuous risk segments<br>
+                • Path length
             </small>
         </div>
     </div>
@@ -943,7 +935,7 @@ def notify_contacts():
     
     # 選擇簡訊模板
     if template_type == 'custom' and custom_message:
-        message_template = f"自定義訊息：{{name}}，{custom_message}"
+        message_template = f"Custom message: {{name}}, {custom_message}"
     else:
         message_template = DEFAULT_SMS_TEMPLATES.get(template_type, DEFAULT_SMS_TEMPLATES['emergency'])
     
@@ -956,9 +948,9 @@ def notify_contacts():
     failed_count = len(results) - success_count
     
     if failed_count == 0:
-        session['notify_message'] = f"成功發送簡訊給 {success_count} 位聯絡人。（模擬模式）"
+        session['notify_message'] = f"Successfully sent SMS to {success_count} contacts (simulation mode)"
     else:
-        session['notify_message'] = f"簡訊發送完成：成功 {success_count} 位，失敗 {failed_count} 位。（模擬模式）"
+        session['notify_message'] = f"SMS sending completed: {success_count} successful, {failed_count} failed (simulation mode)"
     
     # 儲存發送記錄
     session['last_sms_results'] = results
@@ -996,9 +988,9 @@ def notify_email():
                 nearest_shelter = nearest_row['evaspot_name']
                 nearest_distance = nearest_row['distance']
     if template_type == 'custom' and custom_message:
-        subject_template = f"自定義通知 - {{name}}"
-        message_template = f"自定義訊息：{{name}}，{custom_message}"
-        html_template = f'<html><body><p>自定義訊息：{{name}}，{custom_message}</p></body></html>'
+        subject_template = f"Custom Notification - {{name}}"
+        message_template = f"Custom message: {{name}}, {custom_message}"
+        html_template = f'<html><body><p>Custom message: {{name}}, {custom_message}</p></body></html>'
     else:
         template = DEFAULT_EMAIL_TEMPLATES.get(template_type, DEFAULT_EMAIL_TEMPLATES['emergency'])
         subject_template = template['subject']
@@ -1012,8 +1004,8 @@ def notify_email():
     results = []
     for contact in contacts:
         if nearest_distance is not None and nearest_distance > 10:
-            message = "我現在人很平安，距離最近避難所超過10公里，暫時不用避難。"
-            html = '<html><body><p>我現在人很平安<br>距離最近避難所超過10公里，暫時不用避難。</p></body></html>'
+            message = "I am safe now. The nearest shelter is over 10km away, so no evacuation is needed for now."
+            html = '<html><body><p>I am safe now<br>The nearest shelter is over 10km away, so no evacuation is needed for now.</p></body></html>'
         else:
             message = message_template.format(name=contact['姓名'], latlng=latlng, nearest_shelter=nearest_shelter)
             html = html_template.format(name=contact['姓名'], latlng=latlng, nearest_shelter=nearest_shelter)
@@ -1023,9 +1015,9 @@ def notify_email():
     success_count = sum(1 for result in results if result['success'])
     failed_count = len(results) - success_count
     if failed_count == 0:
-        session['notify_message'] = f"成功發送 Email 給 {success_count} 位聯絡人。"
+        session['notify_message'] = f"Successfully sent Email to {success_count} contacts."
     else:
-        session['notify_message'] = f"Email 發送完成：成功 {success_count} 位，失敗 {failed_count} 位。"
+        session['notify_message'] = f"Email sending completed: {success_count} successful, {failed_count} failed."
     session['last_email_results'] = results
     return redirect(url_for('index'))
 
@@ -1055,39 +1047,39 @@ from flask import session
 
 @app.route('/items', methods=['GET', 'POST'])
 def items():
-    # 預設分類與用品
+    # Default categories and items
     base_categories = [
         {
-            'name': '食',
+            'name': 'Food',
             'items': [
-                {'name': '水', 'icon': '💧', 'jp': '水（みず）'},
-                {'name': '麵包', 'icon': '🍞', 'jp': 'パン'},
-                {'name': '罐頭', 'icon': '🥫', 'jp': '缶詰（かんづめ）'},
-                {'name': '餅乾', 'icon': '🍪', 'jp': 'ビスケット'},
+                {'name': 'Water', 'icon': '💧', 'jp': '水（みず）'},
+                {'name': 'Bread', 'icon': '🍞', 'jp': 'パン'},
+                {'name': 'Canned Food', 'icon': '🥫', 'jp': '缶詰（かんづめ）'},
+                {'name': 'Biscuits', 'icon': '🍪', 'jp': 'ビスケット'},
             ]
         },
         {
-            'name': '衣',
+            'name': 'Clothing',
             'items': [
-                {'name': '衣物', 'icon': '👕', 'jp': '衣類（いるい）'},
-                {'name': '毛毯', 'icon': '🧣', 'jp': '毛布（もうふ）'},
-                {'name': '襪子', 'icon': '🧦', 'jp': '靴下（くつした）'},
+                {'name': 'Clothes', 'icon': '👕', 'jp': '衣類（いるい）'},
+                {'name': 'Blanket', 'icon': '🧣', 'jp': '毛布（もうふ）'},
+                {'name': 'Socks', 'icon': '🧦', 'jp': '靴下（くつした）'},
             ]
         },
         {
-            'name': '住',
+            'name': 'Housing',
             'items': [
-                {'name': '帳篷', 'icon': '⛺', 'jp': 'テント'},
-                {'name': '睡袋', 'icon': '🛏️', 'jp': '寝袋（ねぶくろ）'},
-                {'name': '手電筒', 'icon': '🔦', 'jp': '懐中電灯（かいちゅうでんとう）'},
+                {'name': 'Tent', 'icon': '⛺', 'jp': 'テント'},
+                {'name': 'Sleeping Bag', 'icon': '🛏️', 'jp': '寝袋（ねぶくろ）'},
+                {'name': 'Flashlight', 'icon': '🔦', 'jp': '懐中電灯（かいちゅうでんとう）'},
             ]
         },
         {
-            'name': '行',
+            'name': 'Transportation',
             'items': [
-                {'name': '自行車', 'icon': '🚲', 'jp': '自転車（じてんしゃ）'},
-                {'name': '雨傘', 'icon': '☂️', 'jp': '傘（かさ）'},
-                {'name': '藥品', 'icon': '💊', 'jp': '薬（くすり）'},
+                {'name': 'Bicycle', 'icon': '🚲', 'jp': '自転車（じてんしゃ）'},
+                {'name': 'Umbrella', 'icon': '☂️', 'jp': '傘（かさ）'},
+                {'name': 'Medicine', 'icon': '💊', 'jp': '薬（くすり）'},
             ]
         },
     ]
@@ -1120,14 +1112,20 @@ def items():
             custom_items.append({'category': category, 'name': name, 'jp': jp, 'icon': icon})
             session['custom_items'] = custom_items
         return redirect(url_for('items'))
-    # 合併自定義用品
-    categories = [dict(cat) for cat in base_categories]
+    # Merge custom items
+    item_categories = []
+    for cat in base_categories:
+        new_cat = {
+            'name': cat['name'],
+            'items': cat['items'].copy()
+        }
+        item_categories.append(new_cat)
     custom_items = session.get('custom_items', [])
     for item in custom_items:
-        for cat in categories:
+        for cat in item_categories:
             if cat['name'] == item['category']:
                 cat['items'].append({'name': item['name'], 'icon': item['icon'], 'jp': item['jp']})
-    return render_template('items.html', categories=categories)
+    return render_template('items.html', categories=item_categories)
 
 @app.route('/items/delete', methods=['POST'])
 def delete_item():
@@ -1144,86 +1142,86 @@ def first_aid():
     csv_path = str(Path(__file__).parent.parent / 'dataset' / 'first_aid_items.csv')
     items = []
     
-    # 災害類型定義
+    # Disaster type definitions
     disaster_types = {
-        '地震': {
+        'Earthquake': {
             'icon': '🌍',
-            'description': '地震避難包需要準備抗震、防護用品',
+            'description': 'Earthquake emergency kit needs anti-seismic and protective supplies',
             'suggestions': [
-                {'name': '安全帽', 'category': '防護用品', 'quantity': '1', 'description': '保護頭部安全'},
-                {'name': '手電筒', 'category': '照明用品', 'quantity': '2', 'description': '停電時照明'},
-                {'name': '電池', 'category': '電力用品', 'quantity': '10', 'description': '手電筒和收音機用'},
-                {'name': '收音機', 'category': '通訊用品', 'quantity': '1', 'description': '接收緊急廣播'},
-                {'name': '急救包', 'category': '醫療用品', 'quantity': '1', 'description': '基本急救用品'},
-                {'name': '毛毯', 'category': '保暖用品', 'quantity': '2', 'description': '保暖用'},
-                {'name': '飲用水', 'category': '食物飲水', 'quantity': '6', 'description': '每人每天3公升'},
-                {'name': '乾糧', 'category': '食物飲水', 'quantity': '10', 'description': '餅乾、罐頭等'},
-                {'name': '濕紙巾', 'category': '衛生用品', 'quantity': '2', 'description': '清潔用'},
-                {'name': '哨子', 'category': '求救用品', 'quantity': '1', 'description': '求救信號'},
+                {'name': 'Safety Helmet', 'category': 'Protection', 'quantity': '1', 'description': 'Protect head safety'},
+                {'name': 'Flashlight', 'category': 'Lighting', 'quantity': '2', 'description': 'Lighting during power outage'},
+                {'name': 'Batteries', 'category': 'Power', 'quantity': '10', 'description': 'For flashlight and radio'},
+                {'name': 'Radio', 'category': 'Communication', 'quantity': '1', 'description': 'Receive emergency broadcasts'},
+                {'name': 'First Aid Kit', 'category': 'Medical', 'quantity': '1', 'description': 'Basic first aid supplies'},
+                {'name': 'Blanket', 'category': 'Warmth', 'quantity': '2', 'description': 'For warmth'},
+                {'name': 'Drinking Water', 'category': 'Food & Water', 'quantity': '6', 'description': '3 liters per person per day'},
+                {'name': 'Dry Food', 'category': 'Food & Water', 'quantity': '10', 'description': 'Biscuits, canned goods, etc.'},
+                {'name': 'Wet Wipes', 'category': 'Hygiene', 'quantity': '2', 'description': 'For cleaning'},
+                {'name': 'Whistle', 'category': 'Emergency', 'quantity': '1', 'description': 'Distress signal'},
             ]
         },
-        '洪水': {
+        'Flood': {
             'icon': '🌀',
-            'description': '洪水避難包需要準備防水、漂浮用品',
+            'description': 'Flood emergency kit needs waterproof and floating supplies',
             'suggestions': [
-                {'name': '防水袋', 'category': '防水用品', 'quantity': '2', 'description': '保護重要物品'},
-                {'name': '救生衣', 'category': '安全用品', 'quantity': '1', 'description': '防止溺水'},
-                {'name': '手電筒', 'category': '照明用品', 'quantity': '2', 'description': '夜間照明'},
-                {'name': '電池', 'category': '電力用品', 'quantity': '10', 'description': '手電筒用'},
-                {'name': '收音機', 'category': '通訊用品', 'quantity': '1', 'description': '接收緊急廣播'},
-                {'name': '急救包', 'category': '醫療用品', 'quantity': '1', 'description': '基本急救用品'},
-                {'name': '防水布', 'category': '防水用品', 'quantity': '1', 'description': '遮雨用'},
-                {'name': '飲用水', 'category': '食物飲水', 'quantity': '6', 'description': '每人每天3公升'},
-                {'name': '乾糧', 'category': '食物飲水', 'quantity': '10', 'description': '餅乾、罐頭等'},
-                {'name': '塑膠袋', 'category': '防水用品', 'quantity': '10', 'description': '裝物品用'},
+                {'name': 'Waterproof Bag', 'category': 'Waterproof', 'quantity': '2', 'description': 'Protect important items'},
+                {'name': 'Life Jacket', 'category': 'Safety', 'quantity': '1', 'description': 'Prevent drowning'},
+                {'name': 'Flashlight', 'category': 'Lighting', 'quantity': '2', 'description': 'Night lighting'},
+                {'name': 'Batteries', 'category': 'Power', 'quantity': '10', 'description': 'For flashlight'},
+                {'name': 'Radio', 'category': 'Communication', 'quantity': '1', 'description': 'Receive emergency broadcasts'},
+                {'name': 'First Aid Kit', 'category': 'Medical', 'quantity': '1', 'description': 'Basic first aid supplies'},
+                {'name': 'Waterproof Cloth', 'category': 'Waterproof', 'quantity': '1', 'description': 'For rain protection'},
+                {'name': 'Drinking Water', 'category': 'Food & Water', 'quantity': '6', 'description': '3 liters per person per day'},
+                {'name': 'Dry Food', 'category': 'Food & Water', 'quantity': '10', 'description': 'Biscuits, canned goods, etc.'},
+                {'name': 'Plastic Bags', 'category': 'Waterproof', 'quantity': '10', 'description': 'For storing items'},
             ]
         },
-        '火災': {
+        'Fire': {
             'icon': '🔥',
-            'description': '火災避難包需要準備防火、逃生用品',
+            'description': 'Fire emergency kit needs fireproof and escape supplies',
             'suggestions': [
-                {'name': '防煙面罩', 'category': '防護用品', 'quantity': '1', 'description': '防止吸入濃煙'},
-                {'name': '濕毛巾', 'category': '防護用品', 'quantity': '2', 'description': '捂住口鼻'},
-                {'name': '手電筒', 'category': '照明用品', 'quantity': '2', 'description': '照明用'},
-                {'name': '電池', 'category': '電力用品', 'quantity': '10', 'description': '手電筒用'},
-                {'name': '哨子', 'category': '求救用品', 'quantity': '1', 'description': '求救信號'},
-                {'name': '急救包', 'category': '醫療用品', 'quantity': '1', 'description': '基本急救用品'},
-                {'name': '重要文件', 'category': '重要物品', 'quantity': '1', 'description': '身份證、保險等'},
-                {'name': '現金', 'category': '重要物品', 'quantity': '1', 'description': '緊急用錢'},
-                {'name': '手機充電器', 'category': '通訊用品', 'quantity': '1', 'description': '保持通訊'},
-                {'name': '鑰匙', 'category': '重要物品', 'quantity': '1', 'description': '回家用'},
+                {'name': 'Smoke Mask', 'category': 'Protection', 'quantity': '1', 'description': 'Prevent smoke inhalation'},
+                {'name': 'Wet Towel', 'category': 'Protection', 'quantity': '2', 'description': 'Cover mouth and nose'},
+                {'name': 'Flashlight', 'category': 'Lighting', 'quantity': '2', 'description': 'For lighting'},
+                {'name': 'Batteries', 'category': 'Power', 'quantity': '10', 'description': 'For flashlight'},
+                {'name': 'Whistle', 'category': 'Emergency', 'quantity': '1', 'description': 'Distress signal'},
+                {'name': 'First Aid Kit', 'category': 'Medical', 'quantity': '1', 'description': 'Basic first aid supplies'},
+                {'name': 'Important Documents', 'category': 'Important', 'quantity': '1', 'description': 'ID, insurance, etc.'},
+                {'name': 'Cash', 'category': 'Important', 'quantity': '1', 'description': 'Emergency money'},
+                {'name': 'Phone Charger', 'category': 'Communication', 'quantity': '1', 'description': 'Keep communication'},
+                {'name': 'Keys', 'category': 'Important', 'quantity': '1', 'description': 'For returning home'},
             ]
         },
-        '颱風': {
+        'Typhoon': {
             'icon': '🌪️',
-            'description': '颱風避難包需要準備防風、防水用品',
+            'description': 'Typhoon emergency kit needs windproof and waterproof supplies',
             'suggestions': [
-                {'name': '雨衣', 'category': '防水用品', 'quantity': '1', 'description': '防雨用'},
-                {'name': '手電筒', 'category': '照明用品', 'quantity': '2', 'description': '停電時照明'},
-                {'name': '電池', 'category': '電力用品', 'quantity': '10', 'description': '手電筒和收音機用'},
-                {'name': '收音機', 'category': '通訊用品', 'quantity': '1', 'description': '接收颱風資訊'},
-                {'name': '急救包', 'category': '醫療用品', 'quantity': '1', 'description': '基本急救用品'},
-                {'name': '毛毯', 'category': '保暖用品', 'quantity': '2', 'description': '保暖用'},
-                {'name': '飲用水', 'category': '食物飲水', 'quantity': '6', 'description': '每人每天3公升'},
-                {'name': '乾糧', 'category': '食物飲水', 'quantity': '10', 'description': '餅乾、罐頭等'},
-                {'name': '塑膠袋', 'category': '防水用品', 'quantity': '10', 'description': '裝物品用'},
-                {'name': '膠帶', 'category': '工具用品', 'quantity': '1', 'description': '固定物品用'},
+                {'name': 'Raincoat', 'category': 'Waterproof', 'quantity': '1', 'description': 'For rain protection'},
+                {'name': 'Flashlight', 'category': 'Lighting', 'quantity': '2', 'description': 'Lighting during power outage'},
+                {'name': 'Batteries', 'category': 'Power', 'quantity': '10', 'description': 'For flashlight and radio'},
+                {'name': 'Radio', 'category': 'Communication', 'quantity': '1', 'description': 'Receive typhoon information'},
+                {'name': 'First Aid Kit', 'category': 'Medical', 'quantity': '1', 'description': 'Basic first aid supplies'},
+                {'name': 'Blanket', 'category': 'Warmth', 'quantity': '2', 'description': 'For warmth'},
+                {'name': 'Drinking Water', 'category': 'Food & Water', 'quantity': '6', 'description': '3 liters per person per day'},
+                {'name': 'Dry Food', 'category': 'Food & Water', 'quantity': '10', 'description': 'Biscuits, canned goods, etc.'},
+                {'name': 'Plastic Bags', 'category': 'Waterproof', 'quantity': '10', 'description': 'For storing items'},
+                {'name': 'Tape', 'category': 'Tools', 'quantity': '1', 'description': 'For securing items'},
             ]
         },
-        '土石流': {
+        'Landslide': {
             'icon': '⛰️',
-            'description': '土石流避難包需要準備快速逃生用品',
+            'description': 'Landslide emergency kit needs quick escape supplies',
             'suggestions': [
-                {'name': '安全帽', 'category': '防護用品', 'quantity': '1', 'description': '保護頭部安全'},
-                {'name': '手電筒', 'category': '照明用品', 'quantity': '2', 'description': '夜間照明'},
-                {'name': '電池', 'category': '電力用品', 'quantity': '10', 'description': '手電筒用'},
-                {'name': '哨子', 'category': '求救用品', 'quantity': '1', 'description': '求救信號'},
-                {'name': '急救包', 'category': '醫療用品', 'quantity': '1', 'description': '基本急救用品'},
-                {'name': '飲用水', 'category': '食物飲水', 'quantity': '6', 'description': '每人每天3公升'},
-                {'name': '乾糧', 'category': '食物飲水', 'quantity': '10', 'description': '餅乾、罐頭等'},
-                {'name': '重要文件', 'category': '重要物品', 'quantity': '1', 'description': '身份證、保險等'},
-                {'name': '現金', 'category': '重要物品', 'quantity': '1', 'description': '緊急用錢'},
-                {'name': '手機', 'category': '通訊用品', 'quantity': '1', 'description': '緊急聯絡用'},
+                {'name': 'Safety Helmet', 'category': 'Protection', 'quantity': '1', 'description': 'Protect head safety'},
+                {'name': 'Flashlight', 'category': 'Lighting', 'quantity': '2', 'description': 'Night lighting'},
+                {'name': 'Batteries', 'category': 'Power', 'quantity': '10', 'description': 'For flashlight'},
+                {'name': 'Whistle', 'category': 'Emergency', 'quantity': '1', 'description': 'Distress signal'},
+                {'name': 'First Aid Kit', 'category': 'Medical', 'quantity': '1', 'description': 'Basic first aid supplies'},
+                {'name': 'Drinking Water', 'category': 'Food & Water', 'quantity': '6', 'description': '3 liters per person per day'},
+                {'name': 'Dry Food', 'category': 'Food & Water', 'quantity': '10', 'description': 'Biscuits, canned goods, etc.'},
+                {'name': 'Important Documents', 'category': 'Important', 'quantity': '1', 'description': 'ID, insurance, etc.'},
+                {'name': 'Cash', 'category': 'Important', 'quantity': '1', 'description': 'Emergency money'},
+                {'name': 'Mobile Phone', 'category': 'Communication', 'quantity': '1', 'description': 'For emergency contact'},
             ]
         }
     }
@@ -1565,86 +1563,86 @@ def get_preparation_status():
         if not disaster_type:
             return jsonify({'success': False, 'error': '未指定災害類型'})
         
-        # 獲取建議物品清單
+        # Get suggested items list
         disaster_types = {
-            '地震': {
+            'Earthquake': {
                 'icon': '🌍',
-                'description': '地震避難包需要準備抗震、防護用品',
+                'description': 'Earthquake emergency kit needs anti-seismic and protective supplies',
                 'suggestions': [
-                    {'name': '安全帽', 'category': '防護用品', 'quantity': '1', 'description': '保護頭部安全'},
-                    {'name': '手電筒', 'category': '照明用品', 'quantity': '2', 'description': '停電時照明'},
-                    {'name': '電池', 'category': '電力用品', 'quantity': '10', 'description': '手電筒和收音機用'},
-                    {'name': '收音機', 'category': '通訊用品', 'quantity': '1', 'description': '接收緊急廣播'},
-                    {'name': '急救包', 'category': '醫療用品', 'quantity': '1', 'description': '基本急救用品'},
-                    {'name': '毛毯', 'category': '保暖用品', 'quantity': '2', 'description': '保暖用'},
-                    {'name': '飲用水', 'category': '食物飲水', 'quantity': '6', 'description': '每人每天3公升'},
-                    {'name': '乾糧', 'category': '食物飲水', 'quantity': '10', 'description': '餅乾、罐頭等'},
-                    {'name': '濕紙巾', 'category': '衛生用品', 'quantity': '2', 'description': '清潔用'},
-                    {'name': '哨子', 'category': '求救用品', 'quantity': '1', 'description': '求救信號'},
+                    {'name': 'Safety Helmet', 'category': 'Protection', 'quantity': '1', 'description': 'Protect head safety'},
+                    {'name': 'Flashlight', 'category': 'Lighting', 'quantity': '2', 'description': 'Lighting during power outage'},
+                    {'name': 'Batteries', 'category': 'Power', 'quantity': '10', 'description': 'For flashlight and radio'},
+                    {'name': 'Radio', 'category': 'Communication', 'quantity': '1', 'description': 'Receive emergency broadcasts'},
+                    {'name': 'First Aid Kit', 'category': 'Medical', 'quantity': '1', 'description': 'Basic first aid supplies'},
+                    {'name': 'Blanket', 'category': 'Warmth', 'quantity': '2', 'description': 'For warmth'},
+                    {'name': 'Drinking Water', 'category': 'Food & Water', 'quantity': '6', 'description': '3 liters per person per day'},
+                    {'name': 'Dry Food', 'category': 'Food & Water', 'quantity': '10', 'description': 'Biscuits, canned goods, etc.'},
+                    {'name': 'Wet Wipes', 'category': 'Hygiene', 'quantity': '2', 'description': 'For cleaning'},
+                    {'name': 'Whistle', 'category': 'Emergency', 'quantity': '1', 'description': 'Distress signal'},
                 ]
             },
-            '洪水': {
+            'Flood': {
                 'icon': '🌀',
-                'description': '洪水避難包需要準備防水、漂浮用品',
+                'description': 'Flood emergency kit needs waterproof and floating supplies',
                 'suggestions': [
-                    {'name': '防水袋', 'category': '防水用品', 'quantity': '2', 'description': '保護重要物品'},
-                    {'name': '救生衣', 'category': '安全用品', 'quantity': '1', 'description': '防止溺水'},
-                    {'name': '手電筒', 'category': '照明用品', 'quantity': '2', 'description': '夜間照明'},
-                    {'name': '電池', 'category': '電力用品', 'quantity': '10', 'description': '手電筒用'},
-                    {'name': '收音機', 'category': '通訊用品', 'quantity': '1', 'description': '接收緊急廣播'},
-                    {'name': '急救包', 'category': '醫療用品', 'quantity': '1', 'description': '基本急救用品'},
-                    {'name': '防水布', 'category': '防水用品', 'quantity': '1', 'description': '遮雨用'},
-                    {'name': '飲用水', 'category': '食物飲水', 'quantity': '6', 'description': '每人每天3公升'},
-                    {'name': '乾糧', 'category': '食物飲水', 'quantity': '10', 'description': '餅乾、罐頭等'},
-                    {'name': '塑膠袋', 'category': '防水用品', 'quantity': '10', 'description': '裝物品用'},
+                    {'name': 'Waterproof Bag', 'category': 'Waterproof', 'quantity': '2', 'description': 'Protect important items'},
+                    {'name': 'Life Jacket', 'category': 'Safety', 'quantity': '1', 'description': 'Prevent drowning'},
+                    {'name': 'Flashlight', 'category': 'Lighting', 'quantity': '2', 'description': 'Night lighting'},
+                    {'name': 'Batteries', 'category': 'Power', 'quantity': '10', 'description': 'For flashlight'},
+                    {'name': 'Radio', 'category': 'Communication', 'quantity': '1', 'description': 'Receive emergency broadcasts'},
+                    {'name': 'First Aid Kit', 'category': 'Medical', 'quantity': '1', 'description': 'Basic first aid supplies'},
+                    {'name': 'Waterproof Cloth', 'category': 'Waterproof', 'quantity': '1', 'description': 'For rain protection'},
+                    {'name': 'Drinking Water', 'category': 'Food & Water', 'quantity': '6', 'description': '3 liters per person per day'},
+                    {'name': 'Dry Food', 'category': 'Food & Water', 'quantity': '10', 'description': 'Biscuits, canned goods, etc.'},
+                    {'name': 'Plastic Bags', 'category': 'Waterproof', 'quantity': '10', 'description': 'For storing items'},
                 ]
             },
-            '火災': {
+            'Fire': {
                 'icon': '🔥',
-                'description': '火災避難包需要準備防火、逃生用品',
+                'description': 'Fire emergency kit needs fireproof and escape supplies',
                 'suggestions': [
-                    {'name': '防煙面罩', 'category': '防護用品', 'quantity': '1', 'description': '防止吸入濃煙'},
-                    {'name': '濕毛巾', 'category': '防護用品', 'quantity': '2', 'description': '捂住口鼻'},
-                    {'name': '手電筒', 'category': '照明用品', 'quantity': '2', 'description': '照明用'},
-                    {'name': '電池', 'category': '電力用品', 'quantity': '10', 'description': '手電筒用'},
-                    {'name': '哨子', 'category': '求救用品', 'quantity': '1', 'description': '求救信號'},
-                    {'name': '急救包', 'category': '醫療用品', 'quantity': '1', 'description': '基本急救用品'},
-                    {'name': '重要文件', 'category': '重要物品', 'quantity': '1', 'description': '身份證、保險等'},
-                    {'name': '現金', 'category': '重要物品', 'quantity': '1', 'description': '緊急用錢'},
-                    {'name': '手機充電器', 'category': '通訊用品', 'quantity': '1', 'description': '保持通訊'},
-                    {'name': '鑰匙', 'category': '重要物品', 'quantity': '1', 'description': '回家用'},
+                    {'name': 'Smoke Mask', 'category': 'Protection', 'quantity': '1', 'description': 'Prevent smoke inhalation'},
+                    {'name': 'Wet Towel', 'category': 'Protection', 'quantity': '2', 'description': 'Cover mouth and nose'},
+                    {'name': 'Flashlight', 'category': 'Lighting', 'quantity': '2', 'description': 'For lighting'},
+                    {'name': 'Batteries', 'category': 'Power', 'quantity': '10', 'description': 'For flashlight'},
+                    {'name': 'Whistle', 'category': 'Emergency', 'quantity': '1', 'description': 'Distress signal'},
+                    {'name': 'First Aid Kit', 'category': 'Medical', 'quantity': '1', 'description': 'Basic first aid supplies'},
+                    {'name': 'Important Documents', 'category': 'Important', 'quantity': '1', 'description': 'ID, insurance, etc.'},
+                    {'name': 'Cash', 'category': 'Important', 'quantity': '1', 'description': 'Emergency money'},
+                    {'name': 'Phone Charger', 'category': 'Communication', 'quantity': '1', 'description': 'Keep communication'},
+                    {'name': 'Keys', 'category': 'Important', 'quantity': '1', 'description': 'For returning home'},
                 ]
             },
-            '颱風': {
+            'Typhoon': {
                 'icon': '🌪️',
-                'description': '颱風避難包需要準備防風、防水用品',
+                'description': 'Typhoon emergency kit needs windproof and waterproof supplies',
                 'suggestions': [
-                    {'name': '雨衣', 'category': '防水用品', 'quantity': '1', 'description': '防雨用'},
-                    {'name': '手電筒', 'category': '照明用品', 'quantity': '2', 'description': '停電時照明'},
-                    {'name': '電池', 'category': '電力用品', 'quantity': '10', 'description': '手電筒和收音機用'},
-                    {'name': '收音機', 'category': '通訊用品', 'quantity': '1', 'description': '接收颱風資訊'},
-                    {'name': '急救包', 'category': '醫療用品', 'quantity': '1', 'description': '基本急救用品'},
-                    {'name': '毛毯', 'category': '保暖用品', 'quantity': '2', 'description': '保暖用'},
-                    {'name': '飲用水', 'category': '食物飲水', 'quantity': '6', 'description': '每人每天3公升'},
-                    {'name': '乾糧', 'category': '食物飲水', 'quantity': '10', 'description': '餅乾、罐頭等'},
-                    {'name': '塑膠袋', 'category': '防水用品', 'quantity': '10', 'description': '裝物品用'},
-                    {'name': '膠帶', 'category': '工具用品', 'quantity': '1', 'description': '固定物品用'},
+                    {'name': 'Raincoat', 'category': 'Waterproof', 'quantity': '1', 'description': 'For rain protection'},
+                    {'name': 'Flashlight', 'category': 'Lighting', 'quantity': '2', 'description': 'Lighting during power outage'},
+                    {'name': 'Batteries', 'category': 'Power', 'quantity': '10', 'description': 'For flashlight and radio'},
+                    {'name': 'Radio', 'category': 'Communication', 'quantity': '1', 'description': 'Receive typhoon information'},
+                    {'name': 'First Aid Kit', 'category': 'Medical', 'quantity': '1', 'description': 'Basic first aid supplies'},
+                    {'name': 'Blanket', 'category': 'Warmth', 'quantity': '2', 'description': 'For warmth'},
+                    {'name': 'Drinking Water', 'category': 'Food & Water', 'quantity': '6', 'description': '3 liters per person per day'},
+                    {'name': 'Dry Food', 'category': 'Food & Water', 'quantity': '10', 'description': 'Biscuits, canned goods, etc.'},
+                    {'name': 'Plastic Bags', 'category': 'Waterproof', 'quantity': '10', 'description': 'For storing items'},
+                    {'name': 'Tape', 'category': 'Tools', 'quantity': '1', 'description': 'For securing items'},
                 ]
             },
-            '土石流': {
+            'Landslide': {
                 'icon': '⛰️',
-                'description': '土石流避難包需要準備快速逃生用品',
+                'description': 'Landslide emergency kit needs quick escape supplies',
                 'suggestions': [
-                    {'name': '安全帽', 'category': '防護用品', 'quantity': '1', 'description': '保護頭部安全'},
-                    {'name': '手電筒', 'category': '照明用品', 'quantity': '2', 'description': '夜間照明'},
-                    {'name': '電池', 'category': '電力用品', 'quantity': '10', 'description': '手電筒用'},
-                    {'name': '哨子', 'category': '求救用品', 'quantity': '1', 'description': '求救信號'},
-                    {'name': '急救包', 'category': '醫療用品', 'quantity': '1', 'description': '基本急救用品'},
-                    {'name': '飲用水', 'category': '食物飲水', 'quantity': '6', 'description': '每人每天3公升'},
-                    {'name': '乾糧', 'category': '食物飲水', 'quantity': '10', 'description': '餅乾、罐頭等'},
-                    {'name': '重要文件', 'category': '重要物品', 'quantity': '1', 'description': '身份證、保險等'},
-                    {'name': '現金', 'category': '重要物品', 'quantity': '1', 'description': '緊急用錢'},
-                    {'name': '手機', 'category': '通訊用品', 'quantity': '1', 'description': '緊急聯絡用'},
+                    {'name': 'Safety Helmet', 'category': 'Protection', 'quantity': '1', 'description': 'Protect head safety'},
+                    {'name': 'Flashlight', 'category': 'Lighting', 'quantity': '2', 'description': 'Night lighting'},
+                    {'name': 'Batteries', 'category': 'Power', 'quantity': '10', 'description': 'For flashlight'},
+                    {'name': 'Whistle', 'category': 'Emergency', 'quantity': '1', 'description': 'Distress signal'},
+                    {'name': 'First Aid Kit', 'category': 'Medical', 'quantity': '1', 'description': 'Basic first aid supplies'},
+                    {'name': 'Drinking Water', 'category': 'Food & Water', 'quantity': '6', 'description': '3 liters per person per day'},
+                    {'name': 'Dry Food', 'category': 'Food & Water', 'quantity': '10', 'description': 'Biscuits, canned goods, etc.'},
+                    {'name': 'Important Documents', 'category': 'Important', 'quantity': '1', 'description': 'ID, insurance, etc.'},
+                    {'name': 'Cash', 'category': 'Important', 'quantity': '1', 'description': 'Emergency money'},
+                    {'name': 'Mobile Phone', 'category': 'Communication', 'quantity': '1', 'description': 'For emergency contact'},
                 ]
             }
         }
@@ -1808,12 +1806,12 @@ def get_email_preview():
         
         # 生成 Email 內容
         template = DEFAULT_EMAIL_TEMPLATES['emergency']
-        subject = template['subject'].format(name='聯絡人', latlng=latlng, nearest_shelter=nearest_shelter)
+        subject = template['subject'].format(name='Contact', latlng=latlng, nearest_shelter=nearest_shelter)
         
         if nearest_distance is not None and nearest_distance > 10:
-            message = "我現在人很平安，距離最近避難所超過10公里，暫時不用避難。"
+            message = "I am safe now. The nearest shelter is over 10km away, so no evacuation is needed for now."
         else:
-            message = template['message'].format(name='聯絡人', latlng=latlng, nearest_shelter=nearest_shelter)
+            message = template['message'].format(name='Contact', latlng=latlng, nearest_shelter=nearest_shelter)
         
         return jsonify({
             'success': True,
@@ -1826,194 +1824,7 @@ def get_email_preview():
             'error': str(e)
         })
 
-@app.route('/api/plan_route', methods=['POST'])
-def plan_route_to_shelter():
-    """為指定避難所規劃路徑"""
-    try:
-        data = request.get_json()
-        shelter_lat = data.get('latitude')
-        shelter_lon = data.get('longitude')
-        shelter_name = data.get('name')
-        
-        if not all([shelter_lat, shelter_lon, shelter_name]):
-            return jsonify({'success': False, 'error': '缺少必要參數'})
-        
-        # 獲取用戶位置
-        user_location = get_virtual_gps_location()
-        if not user_location:
-            return jsonify({'success': False, 'error': '無法獲取用戶位置'})
-        
-        user_lat, user_lon = user_location
-        
-        # 載入避難所數據
-        db_path = str(Path(__file__).parent.parent / 'dataset' / 'shelters.db')
-        filtered_df = load_shelter_data(db_path)
-        
-        # 建立路網
-        G = ox.graph_from_point((user_lat, user_lon), dist=5000, network_type='walk')
-        
-        # 標記高風險節點
-        risk_nodes = set()
-        
-        # 載入高風險區域（根據當前災害類型）
-        emergency_disaster = session.get('emergency_disaster', '地震')
-        
-        # 土砂災害區域
-        if emergency_disaster in ['崖崩れ・地滑り', '地震']:
-            avoid_db_path = str(Path(__file__).parent.parent / 'dataset' / 'avoid_zone.db')
-            if os.path.exists(avoid_db_path):
-                conn = sqlite3.connect(avoid_db_path)
-                cursor = conn.cursor()
-                try:
-                    cursor.execute("SELECT coordinates FROM avoid_zones WHERE type='landslide'")
-                    rows = cursor.fetchall()
-                    landslide_polygons = []
-                    for (coord_str,) in rows:
-                        try:
-                            coords_raw = ast.literal_eval(coord_str)
-                            if coords_raw and isinstance(coords_raw[0], list) and isinstance(coords_raw[0][0], list):
-                                coords = [[pt[1], pt[0]] for pt in coords_raw[0]]
-                            else:
-                                coords = [[pt[1], pt[0]] for pt in coords_raw]
-                            if len(coords) >= 3:
-                                poly = Polygon(coords)
-                                landslide_polygons.append(poly)
-                        except Exception as e:
-                            print(f"landslide poly parse error: {e}")
-                    conn.close()
-                    
-                    landslide_tree = STRtree(landslide_polygons) if landslide_polygons else None
-                    if landslide_tree:
-                        for n, data in G.nodes(data=True):
-                            pt = Point(data['y'], data['x'])
-                            for poly in landslide_tree.query(pt):
-                                if isinstance(poly, Polygon) and poly.contains(pt):
-                                    risk_nodes.add(n)
-                                    break
-                except Exception as e:
-                    print(f"landslide db error: {e}")
-        
-        # 洪水區域
-        if emergency_disaster in ['洪水', '内水氾濫', '高潮']:
-            avoid_db_path = str(Path(__file__).parent.parent / 'dataset' / 'avoid_zone.db')
-            if os.path.exists(avoid_db_path):
-                conn = sqlite3.connect(avoid_db_path)
-                cursor = conn.cursor()
-                try:
-                    cursor.execute("SELECT coordinates FROM avoid_zones WHERE type='water'")
-                    rows = cursor.fetchall()
-                    water_polygons = []
-                    for (coord_str,) in rows:
-                        try:
-                            coords_raw = ast.literal_eval(coord_str)
-                            if coords_raw and isinstance(coords_raw[0], list) and isinstance(coords_raw[0][0], list):
-                                coords = [[pt[1], pt[0]] for pt in coords_raw[0]]
-                            else:
-                                coords = [[pt[1], pt[0]] for pt in coords_raw]
-                            if len(coords) >= 3:
-                                poly = Polygon(coords)
-                                water_polygons.append(poly)
-                        except Exception as e:
-                            print(f"water poly parse error: {e}")
-                    conn.close()
-                    
-                    water_tree = STRtree(water_polygons) if water_polygons else None
-                    if water_tree:
-                        for n, data in G.nodes(data=True):
-                            pt = Point(data['y'], data['x'])
-                            for poly in water_tree.query(pt):
-                                if isinstance(poly, Polygon) and poly.contains(pt):
-                                    risk_nodes.add(n)
-                                    break
-                except Exception as e:
-                    print(f"water db error: {e}")
-        
-        # 規劃路徑
-        orig_node = ox.nearest_nodes(G, user_lon, user_lat)
-        dest_node = ox.nearest_nodes(G, shelter_lon, shelter_lat)
-        
-        # 嘗試多條路徑並選擇風險最低的路徑
-        best_route = None
-        best_route_score = float('inf')
-        best_route_length = None
-        
-        path_attempts = [
-            ('shortest', 'length'),
-            ('shortest', 'length', 1.5),
-            ('shortest', 'length', 2.0),
-            ('astar', 'length'),
-        ]
-        
-        for attempt in path_attempts:
-            try:
-                if attempt[0] == 'astar':
-                    route = nx.astar_path(G, orig_node, dest_node, weight=attempt[1])
-                elif len(attempt) == 2:
-                    route = nx.shortest_path(G, orig_node, dest_node, weight=attempt[1])
-                else:
-                    weight_func = lambda u, v, d: d[attempt[1]] * attempt[2]
-                    route = nx.shortest_path(G, orig_node, dest_node, weight=weight_func)
-                
-                risk_count = sum(1 for node in route if node in risk_nodes)
-                route_length = sum(
-                    G.edges[route[i], route[i+1], 0]['length']
-                    for i in range(len(route)-1)
-                )
-                
-                consecutive_risk = 0
-                max_consecutive_risk = 0
-                for node in route:
-                    if node in risk_nodes:
-                        consecutive_risk += 1
-                        max_consecutive_risk = max(max_consecutive_risk, consecutive_risk)
-                    else:
-                        consecutive_risk = 0
-                
-                route_score = risk_count * 1000 + max_consecutive_risk * 5000 + route_length
-                
-                if route_score < best_route_score:
-                    best_route = route
-                    best_route_score = route_score
-                    best_route_length = route_length
-                    
-            except Exception as e:
-                print(f"Path attempt failed: {e}")
-                continue
-        
-        if best_route is None:
-            return jsonify({'success': False, 'error': '無法規劃路徑'})
-        
-        # 計算路徑信息
-        route_coords = [(G.nodes[n]['y'], G.nodes[n]['x']) for n in best_route]
-        risk_count = sum(1 for node in best_route if node in risk_nodes)
-        
-        consecutive_risk = 0
-        max_consecutive_risk = 0
-        for node in best_route:
-            if node in risk_nodes:
-                consecutive_risk += 1
-                max_consecutive_risk = max(max_consecutive_risk, consecutive_risk)
-            else:
-                consecutive_risk = 0
-        
-        # 計算安全等級
-        safety_info = calculate_safety_index(risk_count, max_consecutive_risk, best_route_length, len(best_route))
-        
-        # 計算距離
-        distance = calculate_distance(user_lat, user_lon, shelter_lat, shelter_lon)
-        
-        return jsonify({
-            'success': True,
-            'route_coords': route_coords,
-            'route_length': best_route_length,
-            'distance': distance,
-            'safety_info': safety_info,
-            'shelter_name': shelter_name
-        })
-        
-    except Exception as e:
-        print(f"Route planning error: {e}")
-        return jsonify({'success': False, 'error': str(e)})
+
 
 @app.route('/send_emergency_notification', methods=['POST'])
 def send_emergency_notification():
@@ -2027,10 +1838,10 @@ def send_emergency_notification():
                 contacts = list(reader)
         
         if not contacts:
-            return jsonify({
-                'success': False,
-                'error': '沒有聯絡人可以通知'
-            })
+                    return jsonify({
+            'success': False,
+            'error': 'No contacts to notify'
+        })
         
         # 取得目前經緯度與最近避難所
         user_location = session.get('user_location')
@@ -2063,8 +1874,8 @@ def send_emergency_notification():
         for contact in contacts:
             subject = template['subject'].format(name=contact['姓名'], latlng=latlng, nearest_shelter=nearest_shelter)
             if nearest_distance is not None and nearest_distance > 10:
-                message = "我現在人很平安，距離最近避難所超過10公里，暫時不用避難。"
-                html = '<html><body><p>我現在人很平安<br>距離最近避難所超過10公里，暫時不用避難。</p></body></html>'
+                message = "I am safe now. The nearest shelter is over 10km away, so no evacuation is needed for now."
+                html = '<html><body><p>I am safe now<br>The nearest shelter is over 10km away, so no evacuation is needed for now.</p></body></html>'
             else:
                 message = template['message'].format(name=contact['姓名'], latlng=latlng, nearest_shelter=nearest_shelter)
                 html = template['html'].format(name=contact['姓名'], latlng=latlng, nearest_shelter=nearest_shelter)
@@ -2085,14 +1896,14 @@ def send_emergency_notification():
         
         # 生成結果訊息
         if email_failed_count == 0:
-            email_message = f"成功發送 Email 給 {email_success_count} 位聯絡人"
+            email_message = f"Successfully sent Email to {email_success_count} contacts"
         else:
-            email_message = f"Email 發送完成：成功 {email_success_count} 位，失敗 {email_failed_count} 位"
+            email_message = f"Email sending completed: {email_success_count} successful, {email_failed_count} failed"
         
         if sms_failed_count == 0:
-            sms_message = f"成功發送簡訊給 {sms_success_count} 位聯絡人（模擬模式）"
+            sms_message = f"Successfully sent SMS to {sms_success_count} contacts (simulation mode)"
         else:
-            sms_message = f"簡訊發送完成：成功 {sms_success_count} 位，失敗 {sms_failed_count} 位（模擬模式）"
+            sms_message = f"SMS sending completed: {sms_success_count} successful, {sms_failed_count} failed (simulation mode)"
         
         return jsonify({
             'success': True,
