@@ -1,0 +1,7 @@
+flask
+pandas
+folium
+osmnx
+networkx
+openai
+requests 
