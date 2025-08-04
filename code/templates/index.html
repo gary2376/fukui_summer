@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>Evacuation Shelter Map</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        body { background: #f1f2f6; }
+        .big-title { font-size: 2.1em; font-weight: 800; margin-bottom: 0.2em; letter-spacing: 1px; background: linear-gradient(90deg, #e3f0ff 0%, #f8f9fa 100%); border-radius: 12px; padding: 18px 20px 12px 20px; box-shadow: 0 2px 12px rgba(84,153,255,0.08); }
+        .sidebar-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px 12px; border-radius: 12px; margin-bottom: 18px; text-align: center; box-shadow: 0 2px 8px rgba(102,126,234,0.10); }
+        .sidebar-header h1 { color: white; margin: 0; font-size: 22px; letter-spacing: 1px; }
+        .sidebar-card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); padding: 32px 18px 18px 18px; margin-bottom: 18px; border: 1px solid #e9ecef; }
+        .sidebar-title { font-size: 1.8em; font-weight: 800; margin-bottom: 0.2em; letter-spacing: 1px; background: linear-gradient(90deg, #e3f0ff 0%, #f8f9fa 100%); border-radius: 12px; padding: 18px 20px 12px 20px; box-shadow: 0 2px 12px rgba(84,153,255,0.08); text-align: left; }
+        .disaster-section { background-color: #f8f9fa; padding: 12px 10px; border-radius: 8px; margin: 8px 0 18px 0; border-left: 4px solid #667eea; }
+        .form-check { margin-bottom: 10px; }
+        .form-switch { margin-bottom: 10px; }
+        .btn-primary, .btn-outline-danger { font-weight: 600; letter-spacing: 1px; border-radius: 8px; }
+        .btn-primary:hover, .btn-outline-danger:hover { filter: brightness(0.95); box-shadow: 0 2px 8px rgba(84,153,255,0.10); }
+        .emergency-alert-strong { animation: blink 1s infinite; background: linear-gradient(135deg, #ff3b3b 0%, #ffb347 100%); color: #fff; padding: 14px 10px 12px 10px; border-radius: 12px; margin: 10px 0 14px 0; text-align: center; font-size: 1.1em; font-weight: bold; box-shadow: 0 0 12px 2px #ffb3b3; border: 2px solid #fff; }
+        .current-disaster-icon { font-size: 1em !important; }
+        .legend-color { display: inline-block; width: 18px; height: 18px; border-radius: 4px; margin-right: 6px; border: 1px solid #ccc; vertical-align: middle; }
+        .card.mb-3 { box-shadow: 0 2px 12px rgba(84,153,255,0.10); border-radius: 16px; border: 1px solid #e9ecef; }
+        .card-body { border-radius: 16px; }
+        .stat-card { text-align: center; padding: 18px 10px; background-color: #f0f2f6; border-radius: 14px; box-shadow: 0 2px 8px rgba(84,153,255,0.08); margin-bottom: 12px; border: 1px solid #e9ecef; }
+        .stat-title { color: #5499ff; margin: 0; font-size: 1.2em; font-weight: 700; }
+        .stat-value { color: #5499ff; margin: 5px 0; font-size: 2em; font-weight: 800; }
+        .stat-title-orange { color: #ff7f0e; }
+        .stat-value-orange { color: #ff7f0e; }
+        .collapse .card { border-radius: 12px; }
+        .btn-outline-secondary, .btn-outline-info { border-radius: 8px; font-weight: 600; }
+        .btn-outline-secondary:hover, .btn-outline-info:hover { filter: brightness(0.97); }
+        .container-fluid { padding-top: 2rem; }
+    </style>
+</head>
+<body>
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3">
+            <!-- Login Messages -->
+            {% if session.get('login_error') %}
+            <div class="sidebar-card">
+                <div class="alert alert-danger" role="alert">
+                    <strong>Login Failed:</strong>{{ session.login_error }}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if session.get('email_test_success') %}
+            <div class="sidebar-card">
+                <div class="alert alert-success" role="alert">
+                    <strong>Login Successful!</strong>{{ session.email_test_message }}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Emergency Mode Toggle -->
+            <form method="post" action="{{ url_for('toggle_emergency') }}">
+                <div class="form-check form-switch mb-3" style="font-size:1.1em;">
+                    <input class="form-check-input" type="checkbox" name="emergency_mode" id="emergency_mode" onchange="this.form.submit()" {% if emergency_mode %}checked{% endif %}>
+                    <label class="form-check-label" for="emergency_mode">🚨 EMERGENCY MODE</label>
+                </div>
+            </form>
+            {% if emergency_mode %}
+                <div class="sidebar-card">
+                    <div class="sidebar-title" style="background: linear-gradient(90deg, #ffb199 0%, #ffecd2 100%); color:#fff; text-shadow:1px 1px 2px #ffb3b3;">🚨 EMERGENCY ALERT</div>
+                    <div style="background: #ffb347; color: #212529; padding: 10px 12px; border-radius: 8px; margin: 10px 0; font-weight:600;">
+                        <span style="font-size:1.1em;">Disaster now: {{ emergency_disaster or 'Unknown' }}</span>
+                    </div>
+                    {% if notify_message %}
+                    <div class="alert alert-success">{{ notify_message }}</div>
+                    {% endif %}
+                    {% if route_planned %}
+                    <div class="alert alert-info">
+                        <strong>✅ Route Planning Successful!</strong><br>
+                        The optimal route to the selected shelter has been planned. Please check the route line on the map.
+                    </div>
+                    {% endif %}
+                    <button type="button" class="btn btn-danger w-100 mb-2" onclick="sendEmergencyNotification()">📢 Notify All Contacts</button>
+                    
+                    <!-- Email Content Preview Modal -->
+                    <div class="modal fade" id="emailPreviewModal" tabindex="-1" aria-labelledby="emailPreviewModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="emailPreviewModalLabel">📧 Email Content Preview</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <strong>Subject:</strong>
+                                        <div id="emailSubject" class="border p-2 bg-light"></div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>Content:</strong>
+                                        <div id="emailContent" class="border p-2 bg-light"></div>
+                                    </div>
+                                    <div class="alert alert-info">
+                                        <small>📱 Mock SMS will also be sent to all contacts</small>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn btn-primary" onclick="confirmSendNotification()">Confirm Send</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if user_location %}
+                    <div style="background: #28a745; color: #fff; padding: 10px 12px; border-radius: 8px; margin: 10px 0;">
+                        <b>📍 Location:</b><br>Lat: {{ '%.4f'|format(user_location[0]) }}, Lon: {{ '%.4f'|format(user_location[1]) }}
+                    </div>
+                    {% endif %}
+                    {% if nearest_shelters and nearest_shelters[0] %}
+                    <div style="background: #ffc107; color: #212529; padding: 14px 12px; border-radius: 8px; margin: 10px 0;">
+                        <b>🏃‍♂️ Nearest Evacuation Shelter</b><br>
+                        <b>📍 Shelter:</b> {{ nearest_shelters[0][2]['evaspot_name'] }}<br>
+                        {% if nearest_shelters[0][2].get('route_length') %}
+                        <b>🛣️ Walking Distance:</b> {{ '%.2f'|format(nearest_shelters[0][2]['route_length']/1000) }} km<br>
+                        <b>⏱️ Walking Time:</b> {{ '%.0f'|format(nearest_shelters[0][2]['route_length']/1000*12.5) }} minutes (walking)<br>
+                        {% else %}
+                        <b>⏱️ Estimated Time:</b> {{ '%.0f'|format(nearest_shelters[0][0]*15) }} minutes (estimated)<br>
+                        {% endif %}
+                        <b>👥 Capacity:</b> {{ '{:,}'.format(nearest_shelters[0][2]['evaspot_capacity']) }}
+                    </div>
+                    {% endif %}
+                    {% if route_too_far_message %}
+                    <div class="alert alert-warning mt-2">{{ route_too_far_message }}</div>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('index') }}">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="show_forbidden_zones" id="show_forbidden_zones" value="on" onchange="this.form.submit()" {% if show_forbidden_zones %}checked{% endif %}>
+                            <label class="form-check-label" for="show_forbidden_zones">Display of road closures for construction or incidents</label>
+                        </div>
+                        <input type="hidden" name="disaster" value="{{ emergency_disaster }}">
+                        <input type="hidden" name="emergency_mode" value="on">
+                    </form>
+                    {% if show_forbidden_zones %}
+                    <div class="alert alert-info mt-2" style="font-size:1em; font-weight:600; background:#e6e6ff; color:#4b0082; border:1.5px solid #8000ff;">
+                        <b>Purple areas on the map</b>: indicate construction or other impassable zones. Routes will automatically avoid these areas.<br>
+                    </div>
+                    {% endif %}
+                    {% if emergency_disaster in ['崖崩れ・地滑り', '地震'] %}
+                    <form method="post" action="{{ url_for('index') }}">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="show_landslide_zones" id="show_landslide_zones" onchange="this.form.submit()" {% if show_landslide_zones %}checked{% endif %}>
+                            <label class="form-check-label" for="show_landslide_zones">high-risk landslide area</label>
+                        </div>
+                        {% if show_landslide_zones %}
+                        <div class="alert alert-danger mt-2" style="font-size:1em; font-weight:600; border-left: 5px solid #ff0000;">
+                            <b>High-risk landslide areas</b>: These areas are prone to landslides or slope failures. Routes will automatically avoid these zones for your safety.
+                        </div>
+                        {% endif %}
+                        <input type="hidden" name="disaster" value="{{ emergency_disaster }}">
+                        <input type="hidden" name="emergency_mode" value="on">
+                    </form>
+                    {% endif %}
+                    {% if emergency_disaster in ['洪水', '内水氾濫', '高潮'] %}
+                    <form method="post" action="{{ url_for('index') }}">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="show_water_zones" id="show_water_zones" onchange="this.form.submit()" {% if show_water_zones %}checked{% endif %}>
+                            <label class="form-check-label" for="show_water_zones">high-risk water disaster area</label>
+                        </div>
+                        {% if show_water_zones %}
+                        <div class="alert alert-primary mt-2" style="font-size:1em; font-weight:600; border-left: 5px solid #007bff;">
+                            <b>High-risk water disaster areas</b>: These areas are prone to flooding or water-related hazards. Routes will automatically avoid these zones for your safety.
+                        </div>
+                        {% endif %}
+                        <input type="hidden" name="disaster" value="{{ emergency_disaster }}">
+                        <input type="hidden" name="emergency_mode" value="on">
+                    </form>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="sidebar-card">
+                    <div class="sidebar-title">🔍 Disaster Type Selection</div>
+                    <form method="post">
+                        <div class="disaster-section">
+                            <strong>🌪️ Select Disaster Type:</strong><br>
+                            {% for disaster in disaster_columns %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="disaster" value="{{ disaster }}" id="chk-{{ disaster }}" {% if disaster in selected_disasters %}checked{% endif %}>
+                                    <label class="form-check-label" for="chk-{{ disaster }}">{{ disaster_icons[disaster] }} {{ disaster }}</label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3 w-100">Use select</button>
+                    </form>
+                    <!-- Add Emergency Contact button -->
+                    <a href="/contacts" class="btn btn-outline-danger mt-3 w-100">➕ Add Emergency Contact</a>
+                    <!-- Emergency Kit Checklist button -->
+                    <a href="/first_aid" class="btn btn-outline-warning mt-3 w-100">🏥 Emergency Kit Checklist</a>
+                    <!-- Daily Necessities Card button -->
+                    <a href="/items" class="btn btn-outline-primary mt-3 w-100">🛒 Daily Necessities Card</a>
+                    <!-- Diet Card button -->
+                    <a href="/diet_card" class="btn btn-outline-info mt-3 w-100">🍽️ Diet Card</a>
+                    <!-- 生活用品日文 Modal -->
+                    <div class="modal fade" id="itemModal" tabindex="-1" aria-labelledby="itemModalLabel" aria-hidden="true">
+                      <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="itemModalLabel">日文對應</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body" id="itemModalBody">
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">關閉</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <script>
+                    function showItemModal(name, jp) {
+                        document.getElementById('itemModalBody').innerHTML = `<b>${name}</b> 的日文是：<br><span style='font-size:1.5em;'>${jp}</span>`;
+                        var modal = new bootstrap.Modal(document.getElementById('itemModal'));
+                        modal.show();
+                    }
+                    </script>
+                </div>
+            {% endif %}
+            
+            <!-- 使用者登入區域（移動到最下方） -->
+            {% if not session.get('logged_in') %}
+            <div class="sidebar-card">
+                <div class="sidebar-title" style="background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%); color:#fff;">
+                    🔐 登入以發送通知
+                </div>
+                <form method="post" action="/login">
+                    <div class="mb-3">
+                        <label for="email" class="form-label small">Email 地址</label>
+                        <input type="email" class="form-control form-control-sm" id="email" name="email" 
+                               placeholder="your_email@gmail.com" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label small">密碼/App Password</label>
+                        <input type="password" class="form-control form-control-sm" id="password" name="password" 
+                               placeholder="您的密碼或 App Password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        🔐 登入
+                    </button>
+                </form>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        Gmail 用戶請使用 App Password<br>
+                        Outlook 用戶請使用帳號密碼
+                    </small>
+                </div>
+            </div>
+            {% else %}
+            <!-- 已登入使用者資訊顯示 -->
+            <div class="sidebar-card">
+                <div class="sidebar-title" style="background: linear-gradient(90deg, #28a745 0%, #20c997 100%); color:#fff;">
+                    ✅ Log in
+                </div>
+                <div class="alert alert-success" role="alert">
+                    <strong>Account：</strong>{{ session.user_info.email }}<br>
+                    <strong>Service Provider：</strong>{{ session.user_info.provider }}
+                </div>
+                <a href="/logout" class="btn btn-outline-danger btn-sm w-100">🚪 登出</a>
+            </div>
+            {% endif %}
+        </div>
+        <!-- Main Content -->
+        <div class="col-md-9">
+            <div class="big-title mt-3 mb-2">🗺️ Evacuation Shelter Map | Emergency Shelter Location System</div>
+            {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+            {% if not emergency_mode %}
+                {% if emergency_mode %}
+                    <!-- 不顯示任何緊急資訊 -->
+                {% else %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="stat-card">
+                                <div class="stat-title">🏠 Shelter Number</div>
+                                <div class="stat-value">{{ total_shelters }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="stat-card">
+                                <div class="stat-title stat-title-orange">👥 Total Capacity</div>
+                                <div class="stat-value stat-value-orange">{{ '{:,}'.format(total_capacity) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endif %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    {{ map_html|safe }}
+                </div>
+            </div>
+            <div class="mb-3">
+                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#legendCollapse" aria-expanded="false" aria-controls="legendCollapse">🎨 color legend</button>
+                <div class="collapse mt-2" id="legendCollapse">
+                    <div class="card card-body">
+                        <div class="row">
+                            {% for disaster, color in disaster_colors.items() %}
+                                <div class="col-md-3 col-6 mb-1">
+                                    <span class="legend-color" style="background: {{ color }};"></span> {{ disaster_icons[disaster] }} {{ disaster }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% if emergency_mode %}
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-4 col-6">🟢 <b>Green:</b> your location</div>
+                                <div class="col-md-4 col-6">🔴 <b>red:</b> Nearest Evacuation Shelter</div>
+                                <div class="col-md-4 col-12">🔴 <b>Red line:</b> Shelter route</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#tableCollapse" aria-expanded="false" aria-controls="tableCollapse">📊 check the table</button>
+                <div class="collapse mt-2" id="tableCollapse">
+                    <div class="card card-body">
+                        {{ table_html|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <button class="btn btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#usageCollapse" aria-expanded="false" aria-controls="usageCollapse">ℹ️ Use Guide</button>
+                <div class="collapse mt-2" id="usageCollapse">
+                    <div class="card card-body">
+                        <b>系統使用方式：</b><br>
+                        1. 🎯 <b>選擇災害種類</b>：勾選左側災害種類<br>
+                        2. 🗺️ <b>查看地圖</b>：地圖自動顯示對應避難所<br>
+                        3. 📍 <b>點擊標記</b>：查看詳細資訊<br>
+                        4. 📊 <b>查看統計</b>：主頁顯示避難所數與容量<br>
+                        5. 📋 <b>展開表格</b>：可展開查看詳細資料<br>
+                        <br>
+                        <b>🚨 緊急模式功能：</b><br>
+                        6. 🚨 <b>啟動緊急模式</b>：側邊欄切換<br>
+                        7. 📍 <b>模擬定位</b>：自動產生 GPS 位置<br>
+                        8. 🧭 <b>顯示路線</b>：自動顯示最近避難所路徑<br>
+                        9. 📏 <b>距離資訊</b>：標記顯示距離<br>
+                        10. 🏃‍♂️ <b>紅線</b>：顯示最佳避難路徑
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+
+
+
+
+// 一鍵發送通知功能
+function sendEmergencyNotification() {
+    // 先獲取 Email 內容預覽
+    fetch('/get_email_preview', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 顯示 Email 內容預覽
+            document.getElementById('emailSubject').textContent = data.subject;
+            document.getElementById('emailContent').textContent = data.message;
+            
+            // 顯示 Modal
+            var emailModal = new bootstrap.Modal(document.getElementById('emailPreviewModal'));
+            emailModal.show();
+        } else {
+            alert('無法獲取 Email 預覽：' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('發生錯誤，請稍後再試');
+    });
+}
+
+function confirmSendNotification() {
+    // 發送 Email 和簡訊
+    fetch('/send_emergency_notification', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // 關閉預覽 Modal
+        var emailModal = bootstrap.Modal.getInstance(document.getElementById('emailPreviewModal'));
+        emailModal.hide();
+        
+        if (data.success) {
+            alert('通知發送成功！\n\nEmail 發送結果：' + data.email_message + '\n簡訊發送結果：' + data.sms_message);
+            // 重新載入頁面以更新狀態
+            location.reload();
+        } else {
+            alert('發送失敗：' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('發生錯誤，請稍後再試');
+    });
+}
+</script>
+
+{% if notify_message %}
+<div class="modal fade" id="notifyModal" tabindex="-1" aria-labelledby="notifyModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="notifyModalLabel">通知發送成功</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        {{ notify_message }}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">關閉</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  var notifyModal = new bootstrap.Modal(document.getElementById('notifyModal'));
+  notifyModal.show();
+</script>
+{% endif %}
+</body>
+</html> 
