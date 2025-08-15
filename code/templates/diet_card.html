@@ -121,7 +121,12 @@
 
             <!-- Diet card preview -->
             <div class="diet-card">
-                <div class="diet-title">📋 Diet Card Preview</div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="diet-title" style="margin: 0;">📋 Diet Card Preview</div>
+                    <button class="btn btn-primary" onclick="toggleEditMode()" id="editBtn">
+                        ✏️ Edit Information
+                    </button>
+                </div>
                 <div class="card">
                     <div class="card-body">
                         <div class="row">
@@ -171,200 +176,221 @@
                 </div>
             </div>
 
-            <!-- Basic information card -->
-            <div class="diet-card">
-                <div class="diet-title">👤 Basic Information</div>
-                <form method="post" action="/diet_card">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="name" class="form-label">Name</label>
-                                <input type="text" class="form-control" id="name" name="name" 
-                                       value="{{ diet_info.name or '' }}" placeholder="Please enter your name">
+            <!-- Edit forms container (hidden by default) -->
+            <div id="editForms" style="display: none;">
+                <!-- Basic information card -->
+                <div class="diet-card">
+                    <div class="diet-title">👤 Basic Information</div>
+                    <form method="post" action="/diet_card">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Name</label>
+                                    <input type="text" class="form-control" id="name" name="name" 
+                                           value="{{ diet_info.name or '' }}" placeholder="Please enter your name">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="age" class="form-label">Age</label>
+                                    <input type="number" class="form-control" id="age" name="age" 
+                                           value="{{ diet_info.age or '' }}" placeholder="Please enter your age">
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="age" class="form-label">Age</label>
-                                <input type="number" class="form-control" id="age" name="age" 
-                                       value="{{ diet_info.age or '' }}" placeholder="Please enter your age">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="blood_type" class="form-label">Blood Type</label>
+                                    <select class="form-control" id="blood_type" name="blood_type">
+                                        <option value="">Please select blood type</option>
+                                        <option value="A" {% if diet_info.blood_type == 'A' %}selected{% endif %}>Type A</option>
+                                        <option value="B" {% if diet_info.blood_type == 'B' %}selected{% endif %}>Type B</option>
+                                        <option value="O" {% if diet_info.blood_type == 'O' %}selected{% endif %}>Type O</option>
+                                        <option value="AB" {% if diet_info.blood_type == 'AB' %}selected{% endif %}>Type AB</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="emergency_contact" class="form-label">Emergency Contact</label>
+                                    <input type="text" class="form-control" id="emergency_contact" name="emergency_contact" 
+                                           value="{{ diet_info.emergency_contact or '' }}" placeholder="Please enter your emergency contact name">
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="blood_type" class="form-label">Blood Type</label>
-                                <select class="form-control" id="blood_type" name="blood_type">
-                                    <option value="">Please select blood type</option>
-                                    <option value="A" {% if diet_info.blood_type == 'A' %}selected{% endif %}>Type A</option>
-                                    <option value="B" {% if diet_info.blood_type == 'B' %}selected{% endif %}>Type B</option>
-                                    <option value="O" {% if diet_info.blood_type == 'O' %}selected{% endif %}>Type O</option>
-                                    <option value="AB" {% if diet_info.blood_type == 'AB' %}selected{% endif %}>Type AB</option>
-                                </select>
-                            </div>
+                        <div class="mb-3">
+                            <label for="emergency_phone" class="form-label">Emergency Phone</label>
+                            <input type="tel" class="form-control" id="emergency_phone" name="emergency_phone" 
+                                   value="{{ diet_info.emergency_phone or '' }}" placeholder="Please enter your emergency phone">
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="emergency_contact" class="form-label">Emergency Contact</label>
-                                <input type="text" class="form-control" id="emergency_contact" name="emergency_contact" 
-                                       value="{{ diet_info.emergency_contact or '' }}" placeholder="Please enter your emergency contact name">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="emergency_phone" class="form-label">Emergency Phone</label>
-                        <input type="tel" class="form-control" id="emergency_phone" name="emergency_phone" 
-                               value="{{ diet_info.emergency_phone or '' }}" placeholder="Please enter your emergency phone">
-                    </div>
-                    <button type="submit" class="btn btn-primary">💾 Save Basic Information</button>
-                </form>
-            </div>
-
-            <!-- Allergy food card -->
-            <div class="diet-card">
-                <div class="diet-title">⚠️ Allergies</div>
-                
-                <!-- Display existing allergies -->
-                {% if allergies %}
-                <div class="mb-3">
-                    <h6>Currently recorded allergies:</h6>
-                    {% for allergy in allergies %}
-                    <span class="allergy-badge">
-                        {{ allergy.food_name }}
-                        <form method="post" action="/diet_card/delete_allergy" style="display: inline;">
-                            <input type="hidden" name="allergy_id" value="{{ allergy.id }}">
-                            <button type="submit" class="btn btn-sm btn-outline-light" 
-                                    onclick="return confirm('Are you sure you want to delete {{ allergy.food_name }}?')" 
-                                    style="margin-left: 8px; padding: 2px 6px; font-size: 0.8em;">
-                                ✕
-                            </button>
-                        </form>
-                    </span>
-                    {% endfor %}
+                        <button type="submit" class="btn btn-primary">💾 Save Basic Information</button>
+                    </form>
                 </div>
-                {% endif %}
 
-                <!-- Add allergy food form -->
-                <form method="post" action="/diet_card/add_allergy">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="mb-3">
-                                <label for="allergy_food_name" class="form-label">Allergy Name</label>
-                                <input type="text" class="form-control" id="allergy_food_name" name="allergy_food_name" 
-                                       placeholder="Please enter the name of the food you are allergic to" required>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="allergy_severity" class="form-label">Severity</label>
-                                <select class="form-control" id="allergy_severity" name="allergy_severity" required>
-                                    <option value="">Please select severity</option>
-                                    <option value="Light">Light</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="Severe">Severe</option>
-                                    <option value="Fatal">Fatal</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Allergy food card -->
+                <div class="diet-card">
+                    <div class="diet-title">⚠️ Allergies</div>
+                    
+                    <!-- Display existing allergies -->
+                    {% if allergies %}
                     <div class="mb-3">
-                        <label for="allergy_notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="allergy_notes" name="allergy_notes" rows="3" 
-                                  placeholder="Please describe the detailed information of the allergy..."></textarea>
+                        <h6>Currently recorded allergies:</h6>
+                        {% for allergy in allergies %}
+                        <span class="allergy-badge">
+                            {{ allergy.food_name }}
+                            <form method="post" action="/diet_card/delete_allergy" style="display: inline;">
+                                <input type="hidden" name="allergy_id" value="{{ allergy.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-light" 
+                                        onclick="return confirm('Are you sure you want to delete {{ allergy.food_name }}?')" 
+                                        style="margin-left: 8px; padding: 2px 6px; font-size: 0.8em;">
+                                    ✕
+                                </button>
+                            </form>
+                        </span>
+                        {% endfor %}
                     </div>
-                    <button type="submit" class="btn btn-danger">➕ Add Allergy</button>
-                </form>
-            </div>
+                    {% endif %}
 
-            <!-- Diet preferences card -->
-            <div class="diet-card">
-                <div class="diet-title">🍎 Diet Preferences</div>
-                
-                <!-- Display existing preferences -->
-                {% if preferences %}
-                <div class="mb-3">
-                    <h6>Currently recorded preferences:</h6>
-                    {% for preference in preferences %}
-                    <span class="preference-badge">
-                        {{ preference.food_name }}
-                        <form method="post" action="/diet_card/delete_preference" style="display: inline;">
-                            <input type="hidden" name="preference_id" value="{{ preference.id }}">
-                            <button type="submit" class="btn btn-sm btn-outline-light" 
-                                    onclick="return confirm('Are you sure you want to delete {{ preference.food_name }}?')" 
-                                    style="margin-left: 8px; padding: 2px 6px; font-size: 0.8em;">
-                                ✕
-                            </button>
-                        </form>
-                    </span>
-                    {% endfor %}
+                    <!-- Add allergy food form -->
+                    <form method="post" action="/diet_card/add_allergy">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="allergy_food_name" class="form-label">Allergy Name</label>
+                                    <input type="text" class="form-control" id="allergy_food_name" name="allergy_food_name" 
+                                           placeholder="Please enter the name of the food you are allergic to" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="allergy_severity" class="form-label">Severity</label>
+                                    <select class="form-control" id="allergy_severity" name="allergy_severity" required>
+                                        <option value="">Please select severity</option>
+                                        <option value="Light">Light</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Severe">Severe</option>
+                                        <option value="Fatal">Fatal</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="allergy_notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="allergy_notes" name="allergy_notes" rows="3" 
+                                      placeholder="Please describe the detailed information of the allergy..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger">➕ Add Allergy</button>
+                    </form>
                 </div>
-                {% endif %}
 
-                <!-- Add diet preference form -->
-                <form method="post" action="/diet_card/add_preference">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="mb-3">
-                                <label for="pref_food_name" class="form-label">Preference Food Name</label>
-                                <input type="text" class="form-control" id="pref_food_name" name="pref_food_name" 
-                                       placeholder="Please enter the name of the food you prefer or avoid" required>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="pref_type" class="form-label">Preference Type</label>
-                                <select class="form-control" id="pref_type" name="pref_type" required>
-                                    <option value="">Please select type</option>
-                                    <option value="Like">Like</option>
-                                    <option value="Avoid">Avoid</option>
-                                    <option value="Limit">Limit</option>
-                                    <option value="Special Requirement">Special Requirement</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Diet preferences card -->
+                <div class="diet-card">
+                    <div class="diet-title">🍎 Diet Preferences</div>
+                    
+                    <!-- Display existing preferences -->
+                    {% if preferences %}
                     <div class="mb-3">
-                        <label for="pref_notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="pref_notes" name="preference_notes" rows="3" 
-                                  placeholder="Please describe the detailed information of the diet preference..."></textarea>
+                        <h6>Currently recorded preferences:</h6>
+                        {% for preference in preferences %}
+                        <span class="preference-badge">
+                            {{ preference.food_name }}
+                            <form method="post" action="/diet_card/delete_preference" style="display: inline;">
+                                <input type="hidden" name="preference_id" value="{{ preference.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-light" 
+                                        onclick="return confirm('Are you sure you want to delete {{ preference.food_name }}?')" 
+                                        style="margin-left: 8px; padding: 2px 6px; font-size: 0.8em;">
+                                    ✕
+                                </button>
+                            </form>
+                        </span>
+                        {% endfor %}
                     </div>
-                    <button type="submit" class="btn btn-success">➕ Add Diet Preference</button>
-                </form>
-            </div>
+                    {% endif %}
 
-            <!-- Emergency information card -->
-            <div class="diet-card">
-                <div class="diet-title">🚨 Emergency Information</div>
-                <div class="emergency-info">
-                    <h5>⚠️ Important Reminders in Emergency Situations</h5>
-                    <ul>
-                        <li>Please carry allergy medication (e.g. epinephrine injector)</li>
-                        <li>When in a shelter or receiving rescue, please inform the staff about your allergy situation</li>
-                        <li>Avoid eating food from unknown sources</li>
-                        <li>Carry allergy identification bracelet or card</li>
-                    </ul>
+                    <!-- Add diet preference form -->
+                    <form method="post" action="/diet_card/add_preference">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="pref_food_name" class="form-label">Preference Food Name</label>
+                                    <input type="text" class="form-control" id="pref_food_name" name="pref_food_name" 
+                                           placeholder="Please enter the name of the food you prefer or avoid" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="pref_type" class="form-label">Preference Type</label>
+                                    <select class="form-control" id="pref_type" name="pref_type" required>
+                                        <option value="">Please select type</option>
+                                        <option value="Like">Like</option>
+                                        <option value="Avoid">Avoid</option>
+                                        <option value="Limit">Limit</option>
+                                        <option value="Special Requirement">Special Requirement</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="pref_notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="pref_notes" name="preference_notes" rows="3" 
+                                      placeholder="Please describe the detailed information of the diet preference..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success">➕ Add Diet Preference</button>
+                    </form>
                 </div>
-                
-                <form method="post" action="/diet_card">
-                    <div class="mb-3">
-                        <label for="emergency_medication" class="form-label">Emergency Medication</label>
-                        <input type="text" class="form-control" id="emergency_medication" name="emergency_medication" 
-                               value="{{ diet_info.emergency_medication or '' }}" 
-                               placeholder="For example: epinephrine injector, antihistamine...">
+
+                <!-- Emergency information card -->
+                <div class="diet-card">
+                    <div class="diet-title">🚨 Emergency Information</div>
+                    <div class="emergency-info">
+                        <h5>⚠️ Important Reminders in Emergency Situations</h5>
+                        <ul>
+                            <li>Please carry allergy medication (e.g. epinephrine injector)</li>
+                            <li>When in a shelter or receiving rescue, please inform the staff about your allergy situation</li>
+                            <li>Avoid eating food from unknown sources</li>
+                            <li>Carry allergy identification bracelet or card</li>
+                        </ul>
                     </div>
-                    <div class="mb-3">
-                        <label for="medical_notes" class="form-label">Medical Notes</label>
-                        <textarea class="form-control" id="medical_notes" name="medical_notes" rows="4" 
-                                  placeholder="Other important medical information, chronic diseases, medication information, etc.">{{ diet_info.medical_notes or '' }}</textarea>
-                    </div>
-                    <button type="submit" class="btn btn-warning">💾 Save Emergency Information</button>
-                </form>
+                    
+                    <form method="post" action="/diet_card">
+                        <div class="mb-3">
+                            <label for="emergency_medication" class="form-label">Emergency Medication</label>
+                            <input type="text" class="form-control" id="emergency_medication" name="emergency_medication" 
+                                   value="{{ diet_info.emergency_medication or '' }}" 
+                                   placeholder="For example: epinephrine injector, antihistamine...">
+                        </div>
+                        <div class="mb-3">
+                            <label for="medical_notes" class="form-label">Medical Notes</label>
+                            <textarea class="form-control" id="medical_notes" name="medical_notes" rows="4" 
+                                      placeholder="Other important medical information, chronic diseases, medication information, etc.">{{ diet_info.medical_notes or '' }}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-warning">💾 Save Emergency Information</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function toggleEditMode() {
+    const editForms = document.getElementById('editForms');
+    const editBtn = document.getElementById('editBtn');
+    
+    if (editForms.style.display === 'none') {
+        // 顯示編輯表單
+        editForms.style.display = 'block';
+        editBtn.innerHTML = '👁️ Hide Edit Forms';
+        editBtn.className = 'btn btn-secondary';
+    } else {
+        // 隱藏編輯表單
+        editForms.style.display = 'none';
+        editBtn.innerHTML = '✏️ Edit Information';
+        editBtn.className = 'btn btn-primary';
+    }
+}
+</script>
 </body>
 </html> 
