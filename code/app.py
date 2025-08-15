@@ -165,15 +165,27 @@ def index():
         emergency_mode = request.form.get('emergency_mode') == 'on'
         session['emergency_mode'] = emergency_mode
         session['selected_disasters'] = selected_disasters
-        # landslide 危險區域顯示開關
-        show_landslide_zones = request.form.get('show_landslide_zones') == 'on' or request.form.get('show_landslide_zones') == 'true' or request.form.get('show_landslide_zones') == 'checked'
-        session['show_landslide_zones'] = show_landslide_zones
-        # forbidden 區域說明卡片顯示開關
-        show_forbidden_zones = request.form.get('show_forbidden_zones') == 'on' or request.form.get('show_forbidden_zones') == 'true' or request.form.get('show_forbidden_zones') == 'checked'
-        session['show_forbidden_zones'] = show_forbidden_zones
-        # water 區域顯示開關
-        show_water_zones = request.form.get('show_water_zones') == 'on' or request.form.get('show_water_zones') == 'true' or request.form.get('show_water_zones') == 'checked'
-        session['show_water_zones'] = show_water_zones
+        # 根據模式處理區域顯示開關
+        if emergency_mode:
+            # 緊急模式：使用緊急模式專用的 session 變數
+            # 處理所有按鈕狀態，包括隱藏的輸入欄位
+            show_landslide_zones = request.form.get('show_landslide_zones') == 'on'
+            show_forbidden_zones = request.form.get('show_forbidden_zones') == 'on'
+            show_water_zones = request.form.get('show_water_zones') == 'on'
+            
+            session['emergency_show_landslide_zones'] = show_landslide_zones
+            session['emergency_show_forbidden_zones'] = show_forbidden_zones
+            session['emergency_show_water_zones'] = show_water_zones
+        else:
+            # 非緊急模式：使用一般模式的 session 變數
+            # 處理所有按鈕狀態，包括隱藏的輸入欄位
+            show_landslide_zones = request.form.get('show_landslide_zones') == 'on'
+            show_forbidden_zones = request.form.get('show_forbidden_zones') == 'on'
+            show_water_zones = request.form.get('show_water_zones') == 'on'
+            
+            session['show_landslide_zones'] = show_landslide_zones
+            session['show_forbidden_zones'] = show_forbidden_zones
+            session['show_water_zones'] = show_water_zones
         # 緊急模式啟動時模擬 GPS 與隨機災害
         if emergency_mode:
             if not session.get('user_location'):
@@ -189,6 +201,10 @@ def index():
             session.pop('user_location', None)
             session.pop('emergency_disaster', None)
             session.pop('emergency_email_sent', None)
+            # 清除緊急模式的區域顯示狀態
+            session.pop('emergency_show_landslide_zones', None)
+            session.pop('emergency_show_forbidden_zones', None)
+            session.pop('emergency_show_water_zones', None)
         return redirect(url_for('index'))
     # 清除登入訊息（如果有的話）
     login_error = session.pop('login_error', None)
@@ -200,9 +216,19 @@ def index():
     emergency_mode = session.get('emergency_mode', False)
     user_location = session.get('user_location')
     emergency_disaster = session.get('emergency_disaster')
-    show_landslide_zones = session.get('show_landslide_zones', True)
-    show_forbidden_zones = session.get('show_forbidden_zones', True)
-    show_water_zones = session.get('show_water_zones', True)
+    
+    # 根據模式使用不同的區域顯示狀態
+    if emergency_mode:
+        # 緊急模式：使用緊急模式專用的區域顯示狀態，預設關閉
+        show_landslide_zones = session.get('emergency_show_landslide_zones', False)
+        show_forbidden_zones = session.get('emergency_show_forbidden_zones', False)
+        show_water_zones = session.get('emergency_show_water_zones', False)
+    else:
+        # 非緊急模式：使用一般模式的區域顯示狀態（這些按鈕在非緊急模式下不會顯示）
+        show_landslide_zones = session.get('show_landslide_zones', False)
+        show_forbidden_zones = session.get('show_forbidden_zones', False)
+        show_water_zones = session.get('show_water_zones', False)
+    
     notify_message = session.pop('notify_message', None)
     # 載入資料
     df = None
@@ -246,28 +272,41 @@ def index():
     landslide_polygons = []  # 修正作用域，確保任何情況下都初始化
     water_polygons = []  # 新增 water 區域多邊形
     if emergency_mode and user_location and filtered_df is not None and not filtered_df.empty and emergency_disaster:
-        # 讀取禁行多邊形
+        # 初始化變數
         forbidden_polygons = []
-        trans_path = str(Path(__file__).parent.parent / 'dataset' / 'fukui_trans.csv')
-        if os.path.exists(trans_path):
-            df_trans = pd.read_csv(trans_path, encoding='utf-8')  # 強制 utf-8
-            for _, row in df_trans.iterrows():
-                try:
-                    coords = ast.literal_eval(row['coordinates'])
-                    if len(coords) >= 3:
-                        forbidden_polygons.append(Polygon(coords))
-                except Exception:
-                    pass
-        # landslide 高風險區域（只在地震或崖崩れ・地滑り時啟用）
         landslide_polygons = []
-        if emergency_disaster in ['崖崩れ・地滑り', '地震']:
+        water_polygons = []
+        landslide_tree = None
+        water_tree = None
+        
+        # 只在需要顯示禁行區域時才讀取
+        if show_forbidden_zones:
+            trans_path = str(Path(__file__).parent.parent / 'dataset' / 'fukui_trans.csv')
+            if os.path.exists(trans_path):
+                df_trans = pd.read_csv(trans_path, encoding='utf-8')  # 強制 utf-8
+                for _, row in df_trans.iterrows():
+                    try:
+                        coords = ast.literal_eval(row['coordinates'])
+                        if len(coords) >= 3:
+                            forbidden_polygons.append(Polygon(coords))
+                    except Exception:
+                        pass
+        
+        # 只在需要顯示 landslide 區域且災害類型符合時才讀取
+        if show_landslide_zones and emergency_disaster in ['崖崩れ・地滑り', '地震']:
             avoid_db_path = str(Path(__file__).parent.parent / 'dataset' / 'avoid_zone.db')
             if os.path.exists(avoid_db_path):
                 conn = sqlite3.connect(avoid_db_path)
                 cursor = conn.cursor()
                 try:
+                    # 只讀取使用者附近 10km 範圍內的 landslide areas
+                    user_lat, user_lon = user_location
+                    lat_min, lat_max = user_lat - 0.1, user_lat + 0.1  # 約 11km
+                    lon_min, lon_max = user_lon - 0.1, user_lon + 0.1  # 約 11km
+                    
                     cursor.execute("SELECT coordinates FROM avoid_zones WHERE type='landslide'")
                     rows = cursor.fetchall()
+                    
                     for (coord_str,) in rows:
                         try:
                             coords_raw = ast.literal_eval(coord_str)
@@ -276,25 +315,45 @@ def index():
                                 coords = [[pt[1], pt[0]] for pt in coords_raw[0]]
                             else:
                                 coords = [[pt[1], pt[0]] for pt in coords_raw]
+                            
+                            # 快速過濾：檢查多邊形是否在感興趣的範圍內
                             if len(coords) >= 3:
-                                poly = Polygon(coords)
-                                landslide_polygons.append(poly)
+                                # 計算多邊形的邊界框
+                                lats = [pt[0] for pt in coords]
+                                lons = [pt[1] for pt in coords]
+                                poly_lat_min, poly_lat_max = min(lats), max(lats)
+                                poly_lon_min, poly_lon_max = min(lons), max(lons)
+                                
+                                # 檢查邊界框是否與感興趣區域重疊
+                                if (poly_lat_max >= lat_min and poly_lat_min <= lat_max and 
+                                    poly_lon_max >= lon_min and poly_lon_min <= lon_max):
+                                    poly = Polygon(coords)
+                                    landslide_polygons.append(poly)
                         except Exception as e:
                             print(f"landslide poly parse error: {e}")
+                    
+                    print(f"[DEBUG] Loaded {len(landslide_polygons)} landslide polygons in user area")
+                    
                 except Exception as e:
                     print(f"landslide db error: {e}")
                 conn.close()
-        landslide_tree = STRtree(landslide_polygons) if landslide_polygons else None
-        # water 高風險區域（只在水災時啟用）
-        water_polygons = []
-        if emergency_disaster in ['洪水', '内水氾濫', '高潮']:
+            landslide_tree = STRtree(landslide_polygons) if landslide_polygons else None
+        
+        # 只在需要顯示 water 區域且災害類型符合時才讀取
+        if show_water_zones and emergency_disaster in ['洪水', '内水氾濫', '高潮']:
             avoid_db_path = str(Path(__file__).parent.parent / 'dataset' / 'avoid_zone.db')
             if os.path.exists(avoid_db_path):
                 conn = sqlite3.connect(avoid_db_path)
                 cursor = conn.cursor()
                 try:
+                    # 只讀取使用者附近 10km 範圍內的 water areas
+                    user_lat, user_lon = user_location
+                    lat_min, lat_max = user_lat - 0.1, user_lat + 0.1  # 約 11km
+                    lon_min, lon_max = user_lon - 0.1, user_lon + 0.1  # 約 11km
+                    
                     cursor.execute("SELECT coordinates FROM avoid_zones WHERE type='water'")
                     rows = cursor.fetchall()
+                    
                     for (coord_str,) in rows:
                         try:
                             coords_raw = ast.literal_eval(coord_str)
@@ -302,15 +361,29 @@ def index():
                                 coords = [[pt[1], pt[0]] for pt in coords_raw[0]]
                             else:
                                 coords = [[pt[1], pt[0]] for pt in coords_raw]
+                            
+                            # 快速過濾：檢查多邊形是否在感興趣的範圍內
                             if len(coords) >= 3:
-                                poly = Polygon(coords)
-                                water_polygons.append(poly)
+                                # 計算多邊形的邊界框
+                                lats = [pt[0] for pt in coords]
+                                lons = [pt[1] for pt in coords]
+                                poly_lat_min, poly_lat_max = min(lats), max(lats)
+                                poly_lon_min, poly_lon_max = min(lons), max(lons)
+                                
+                                # 檢查邊界框是否與感興趣區域重疊
+                                if (poly_lat_max >= lat_min and poly_lat_min <= lat_max and 
+                                    poly_lon_max >= lon_min and poly_lon_min <= lon_max):
+                                    poly = Polygon(coords)
+                                    water_polygons.append(poly)
                         except Exception as e:
                             print(f"water poly parse error: {e}")
+                    
+                    print(f"[DEBUG] Loaded {len(water_polygons)} water polygons in user area")
+                    
                 except Exception as e:
                     print(f"water db error: {e}")
                 conn.close()
-        water_tree = STRtree(water_polygons) if water_polygons else None
+            water_tree = STRtree(water_polygons) if water_polygons else None
         # 只顯示包含當前災害類型的避難所
         print(f"[DEBUG] emergency_disaster: {emergency_disaster}")
         print(f"[DEBUG] filtered_df columns: {filtered_df.columns}")
@@ -537,40 +610,18 @@ def index():
                         else:
                             consecutive_risk = 0
                     
-                    # 計算安全指數
-                    safety_info = calculate_safety_index(risk_count, max_consecutive_risk, route_length, len(best_route))
+                    # 使用藍色路線，移除安全評估
+                    route_color = 'blue'
                     
-                    if risk_count == 0:
-                        route_color = 'green'  # 安全路徑
-                    elif risk_count <= 2 and max_consecutive_risk <= 2:
-                        route_color = 'orange'  # 低風險路徑
-                    elif max_consecutive_risk > 3:
-                        route_color = 'red'  # 高風險路徑（連續高風險）
-                    else:
-                        route_color = 'darkorange'  # 中風險路徑
-                    
-                    # 創建安全等級顯示的HTML
-                    safety_html = f"""
+                    # 簡化的路線資訊顯示
+                    route_info_html = f"""
                     <div style="text-align: center; padding: 10px;">
-                        <h4 style="margin: 0 0 10px 0; color: {safety_info['color']};">
-                            🛡️ 安全等級: {safety_info['level']}
+                        <h4 style="margin: 0 0 10px 0; color: #007bff;">
+                            🛣️ 避難路線
                         </h4>
-                        <div style="display: flex; justify-content: center; margin: 10px 0;">
-                            <div style="width: 60px; height: 60px; border-radius: 50%; 
-                                        background: {safety_info['color']}; display: flex; 
-                                        align-items: center; justify-content: center; 
-                                        font-size: 24px; font-weight: bold; color: white;">
-                                {safety_info['level']}
-                            </div>
-                        </div>
-                        <p style="margin: 5px 0; font-size: 12px; color: {safety_info['color']};">
-                            {safety_info['description']}
-                        </p>
-                        <hr style="margin: 10px 0;">
-                        <p style="margin: 5px 0; font-size: 11px;">
+                        <p style="margin: 5px 0; font-size: 12px;">
                             📏 路徑長度: {route_length:.0f} 公尺<br>
-                            ⚠️ 風險節點: {risk_count} 個 ({safety_info['risk_ratio']}%)<br>
-                            🔗 連續風險: {max_consecutive_risk} 個
+                            ⏱️ 預估時間: {int(route_length / 80)} 分鐘
                         </p>
                     </div>
                     """
@@ -582,7 +633,7 @@ def index():
                             f"<div style='width: 300px;'>"
                             f"<h3 style='margin: 0 0 10px 0;'>📍 {row['evaspot_name']}</h3>"
                             f"<p style='margin: 5px 0;'>📍 距離: {distance:.2f} km</p>"
-                            f"{safety_html}"
+                            f"{route_info_html}"
                             f"</div>",
                             max_width=350
                         )
@@ -704,38 +755,7 @@ def index():
             except Exception as e:
                 print(f"water folium poly error: {e}")
     
-    # 添加安全等級圖例
-    safety_legend_html = """
-    <div style="position: fixed; 
-                top: 10px; right: 10px; width: 200px; height: auto; 
-                background-color: white; border:2px solid grey; z-index:9999; 
-                font-size:14px; padding: 10px; border-radius: 5px;">
-        <h4 style="margin: 0 0 10px 0; text-align: center;">🛡️ Path Safety Level</h4>
-        <div style="margin: 5px 0;">
-            <div style="display: flex; align-items: center; margin: 5px 0;">
-                <div style="width: 20px; height: 20px; border-radius: 50%; background: green; margin-right: 8px;"></div>
-                <span style="font-weight: bold;">High Safety</span>
-            </div>
-            <div style="display: flex; align-items: center; margin: 5px 0;">
-                <div style="width: 20px; height: 20px; border-radius: 50%; background: orange; margin-right: 8px;"></div>
-                <span style="font-weight: bold;">Medium Safety</span>
-            </div>
-            <div style="display: flex; align-items: center; margin: 5px 0;">
-                <div style="width: 20px; height: 20px; border-radius: 50%; background: red; margin-right: 8px;"></div>
-                <span style="font-weight: bold;">Low Safety</span>
-            </div>
-        </div>
-        <div style="margin: 10px 0; padding: 5px; background-color: #f0f0f0; border-radius: 3px;">
-            <small>
-                <strong>Evaluation Criteria:</strong><br>
-                • Number of risk nodes<br>
-                • Continuous risk segments<br>
-                • Path length
-            </small>
-        </div>
-    </div>
-    """
-    m.get_root().html.add_child(folium.Element(safety_legend_html))
+
     map_html = m._repr_html_()
     # 統計卡片
     total_shelters = len(filtered_df) if filtered_df is not None else 0
@@ -1971,6 +1991,74 @@ def diet_card() -> str:
     init_diet_database()
     
     db_path = str(Path(__file__).parent.parent / 'dataset' / 'diet_card.db')
+    success_message = None
+    error_message = None
+    
+    # 處理 POST 請求（基本資訊更新）
+    if request.method == 'POST':
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # 檢查是否已有記錄
+            cursor.execute('SELECT * FROM diet_info ORDER BY id DESC LIMIT 1')
+            existing_record = cursor.fetchone()
+            
+            if existing_record:
+                # 獲取現有資料
+                current_data = {
+                    'name': existing_record[1] or '',
+                    'age': existing_record[2] or '',
+                    'blood_type': existing_record[3] or '',
+                    'emergency_contact': existing_record[4] or '',
+                    'emergency_phone': existing_record[5] or '',
+                    'emergency_medication': existing_record[6] or '',
+                    'medical_notes': existing_record[7] or ''
+                }
+                
+                # 只更新有提交的欄位，保留其他欄位的現有值
+                name = request.form.get('name', '').strip() or current_data['name']
+                age = request.form.get('age', '').strip() or current_data['age']
+                blood_type = request.form.get('blood_type', '').strip() or current_data['blood_type']
+                emergency_contact = request.form.get('emergency_contact', '').strip() or current_data['emergency_contact']
+                emergency_phone = request.form.get('emergency_phone', '').strip() or current_data['emergency_phone']
+                emergency_medication = request.form.get('emergency_medication', '').strip() or current_data['emergency_medication']
+                medical_notes = request.form.get('medical_notes', '').strip() or current_data['medical_notes']
+                
+                # 更新現有記錄
+                cursor.execute('''
+                    UPDATE diet_info SET 
+                    name = ?, age = ?, blood_type = ?, emergency_contact = ?, 
+                    emergency_phone = ?, emergency_medication = ?, medical_notes = ?, 
+                    updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (name, age, blood_type, emergency_contact, emergency_phone, 
+                     emergency_medication, medical_notes, existing_record[0]))
+            else:
+                # 創建新記錄
+                name = request.form.get('name', '').strip()
+                age = request.form.get('age', '').strip()
+                blood_type = request.form.get('blood_type', '').strip()
+                emergency_contact = request.form.get('emergency_contact', '').strip()
+                emergency_phone = request.form.get('emergency_phone', '').strip()
+                emergency_medication = request.form.get('emergency_medication', '').strip()
+                medical_notes = request.form.get('medical_notes', '').strip()
+                
+                cursor.execute('''
+                    INSERT INTO diet_info (name, age, blood_type, emergency_contact, 
+                    emergency_phone, emergency_medication, medical_notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (name, age, blood_type, emergency_contact, emergency_phone, 
+                     emergency_medication, medical_notes))
+            
+            conn.commit()
+            conn.close()
+            success_message = "資訊已成功儲存！"
+            
+        except Exception as e:
+            error_message = f"儲存失敗：{str(e)}"
+    
+    # 查詢資料庫獲取最新資料
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
@@ -2016,49 +2104,6 @@ def diet_card() -> str:
         })
     
     conn.close()
-    
-    success_message = None
-    error_message = None
-    
-    if request.method == 'POST':
-        try:
-            # 處理基本資訊更新
-            name = request.form.get('name', '').strip()
-            age = request.form.get('age', '').strip()
-            blood_type = request.form.get('blood_type', '').strip()
-            emergency_contact = request.form.get('emergency_contact', '').strip()
-            emergency_phone = request.form.get('emergency_phone', '').strip()
-            emergency_medication = request.form.get('emergency_medication', '').strip()
-            medical_notes = request.form.get('medical_notes', '').strip()
-            
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            
-            if diet_info.get('id'):
-                # 更新現有記錄
-                cursor.execute('''
-                    UPDATE diet_info SET 
-                    name = ?, age = ?, blood_type = ?, emergency_contact = ?, 
-                    emergency_phone = ?, emergency_medication = ?, medical_notes = ?, 
-                    updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                ''', (name, age, blood_type, emergency_contact, emergency_phone, 
-                     emergency_medication, medical_notes, diet_info['id']))
-            else:
-                # 創建新記錄
-                cursor.execute('''
-                    INSERT INTO diet_info (name, age, blood_type, emergency_contact, 
-                    emergency_phone, emergency_medication, medical_notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (name, age, blood_type, emergency_contact, emergency_phone, 
-                     emergency_medication, medical_notes))
-            
-            conn.commit()
-            conn.close()
-            success_message = "基本資訊已成功儲存！"
-            
-        except Exception as e:
-            error_message = f"儲存失敗：{str(e)}"
     
     return render_template('diet_card.html', 
                          diet_info=diet_info, 
