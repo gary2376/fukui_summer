@@ -130,13 +130,15 @@
                     {% endif %}
                     <form method="post" action="{{ url_for('index') }}">
                         <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" name="show_forbidden_zones" id="show_forbidden_zones" value="on" onchange="this.form.submit()" {% if show_forbidden_zones %}checked{% endif %}>
+                            <input class="form-check-input" type="checkbox" name="show_forbidden_zones" id="show_forbidden_zones" onchange="this.form.submit()" {% if emergency_mode and show_forbidden_zones %}checked{% endif %}>
                             <label class="form-check-label" for="show_forbidden_zones">Display of road closures for construction or incidents</label>
                         </div>
                         <input type="hidden" name="disaster" value="{{ emergency_disaster }}">
                         <input type="hidden" name="emergency_mode" value="on">
+                        <input type="hidden" name="show_landslide_zones" value="{{ 'on' if emergency_mode and show_landslide_zones else 'off' }}">
+                        <input type="hidden" name="show_water_zones" value="{{ 'on' if emergency_mode and show_water_zones else 'off' }}">
                     </form>
-                    {% if show_forbidden_zones %}
+                    {% if emergency_mode and show_forbidden_zones %}
                     <div class="alert alert-info mt-2" style="font-size:1em; font-weight:600; background:#e6e6ff; color:#4b0082; border:1.5px solid #8000ff;">
                         <b>Purple areas on the map</b>: indicate construction or other impassable zones. Routes will automatically avoid these areas.<br>
                     </div>
@@ -144,31 +146,35 @@
                     {% if emergency_disaster in ['崖崩れ・地滑り', '地震'] %}
                     <form method="post" action="{{ url_for('index') }}">
                         <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" name="show_landslide_zones" id="show_landslide_zones" onchange="this.form.submit()" {% if show_landslide_zones %}checked{% endif %}>
+                            <input class="form-check-input" type="checkbox" name="show_landslide_zones" id="show_landslide_zones" onchange="this.form.submit()" {% if emergency_mode and show_landslide_zones %}checked{% endif %}>
                             <label class="form-check-label" for="show_landslide_zones">high-risk landslide area</label>
                         </div>
-                        {% if show_landslide_zones %}
+                        {% if emergency_mode and show_landslide_zones %}
                         <div class="alert alert-danger mt-2" style="font-size:1em; font-weight:600; border-left: 5px solid #ff0000;">
                             <b>High-risk landslide areas</b>: These areas are prone to landslides or slope failures. Routes will automatically avoid these zones for your safety.
                         </div>
                         {% endif %}
                         <input type="hidden" name="disaster" value="{{ emergency_disaster }}">
                         <input type="hidden" name="emergency_mode" value="on">
+                        <input type="hidden" name="show_forbidden_zones" value="{{ 'on' if emergency_mode and show_forbidden_zones else 'off' }}">
+                        <input type="hidden" name="show_water_zones" value="{{ 'on' if emergency_mode and show_water_zones else 'off' }}">
                     </form>
                     {% endif %}
                     {% if emergency_disaster in ['洪水', '内水氾濫', '高潮'] %}
                     <form method="post" action="{{ url_for('index') }}">
                         <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" name="show_water_zones" id="show_water_zones" onchange="this.form.submit()" {% if show_water_zones %}checked{% endif %}>
+                            <input class="form-check-input" type="checkbox" name="show_water_zones" id="show_water_zones" onchange="this.form.submit()" {% if emergency_mode and show_water_zones %}checked{% endif %}>
                             <label class="form-check-label" for="show_water_zones">high-risk water disaster area</label>
                         </div>
-                        {% if show_water_zones %}
+                        {% if emergency_mode and show_water_zones %}
                         <div class="alert alert-primary mt-2" style="font-size:1em; font-weight:600; border-left: 5px solid #007bff;">
                             <b>High-risk water disaster areas</b>: These areas are prone to flooding or water-related hazards. Routes will automatically avoid these zones for your safety.
                         </div>
                         {% endif %}
                         <input type="hidden" name="disaster" value="{{ emergency_disaster }}">
                         <input type="hidden" name="emergency_mode" value="on">
+                        <input type="hidden" name="show_forbidden_zones" value="{{ 'on' if emergency_mode and show_forbidden_zones else 'off' }}">
+                        <input type="hidden" name="show_landslide_zones" value="{{ 'on' if emergency_mode and show_landslide_zones else 'off' }}">
                     </form>
                     {% endif %}
                 </div>
@@ -253,11 +259,11 @@
             <!-- 已登入使用者資訊顯示 -->
             <div class="sidebar-card">
                 <div class="sidebar-title" style="background: linear-gradient(90deg, #28a745 0%, #20c997 100%); color:#fff;">
-                    ✅ Log in
+                    ✅ 已登入
                 </div>
                 <div class="alert alert-success" role="alert">
-                    <strong>Account：</strong>{{ session.user_info.email }}<br>
-                    <strong>Service Provider：</strong>{{ session.user_info.provider }}
+                    <strong>帳號：</strong>{{ session.user_info.email }}<br>
+                    <strong>服務商：</strong>{{ session.user_info.provider }}
                 </div>
                 <a href="/logout" class="btn btn-outline-danger btn-sm w-100">🚪 登出</a>
             </div>
