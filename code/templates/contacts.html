@@ -5,57 +5,377 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emergency Contact Management</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .group-section {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .group-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .contact-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+        .contact-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+        .group-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .notification-section {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #ff6b6b;
+        }
+        .form-section {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #48cae4;
+        }
+        .badge.bg-primary {
+            font-size: 0.9em;
+            padding: 8px 12px;
+            margin: 2px;
+        }
+        .btn-close-white {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+    </style>
 </head>
 <body>
 <div class="container mt-4">
-    <h2 class="mb-4">Emergency Contact Management</h2>
-    <form method="post" class="mb-4">
-        <div class="row g-3 align-items-center">
-            <div class="col-md-3">
-                <input type="text" class="form-control" name="name" placeholder="Name" required>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="/" class="btn btn-secondary btn-lg">🏠 Back to Home</a>
+        <h2 class="mb-0 flex-grow-1 text-center">👥 Emergency Contact Management</h2>
+        <div style="width: 140px;"></div> <!-- Spacer for centering -->
+    </div>
+    
+    <!-- Add Contact Form -->
+    <div class="form-section">
+        <h4 class="mb-3">➕ Add New Contact</h4>
+        <form method="post" class="mb-4">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-2">
+                    <label for="name" class="form-label">Name</label>
+                    <input type="text" class="form-control" name="name" id="name" placeholder="Name" required>
+                </div>
+                <div class="col-md-2">
+                    <label for="phone" class="form-label">Phone</label>
+                    <input type="text" class="form-control" name="phone" id="phone" placeholder="Phone" required pattern="[0-9\-+() ]+">
+                </div>
+                <div class="col-md-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" name="email" id="email" placeholder="Email" required>
+                </div>
+                <div class="col-md-3">
+                    <label for="group" class="form-label">Group</label>
+                    <div class="d-flex gap-2">
+                        <select class="form-select" name="group" id="group" required>
+                            {% for group in groups %}
+                            <option value="{{ group }}">{{ group }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-outline-success" onclick="showAddGroupModal()" title="Add New Group">➕</button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Add Contact</button>
+                </div>
             </div>
-            <div class="col-md-3">
-                <input type="text" class="form-control" name="phone" placeholder="Phone" required pattern="[0-9\-+() ]+">
-            </div>
-            <div class="col-md-4">
-                <input type="email" class="form-control" name="email" placeholder="Email" required>
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100">Add Contact</button>
+        </form>
+    </div>
+
+    <!-- Add Group Modal -->
+    <div class="modal fade" id="addGroupModal" tabindex="-1" aria-labelledby="addGroupModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addGroupModalLabel">🏷️ Add New Group</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="modal_group_name" class="form-label">Group Name *</label>
+                        <input type="text" class="form-control" id="modal_group_name" placeholder="Enter group name" maxlength="20" required>
+                    </div>
+                    
+                    <!-- Current Groups Display -->
+                    <div class="mb-3">
+                        <label class="form-label">Current Groups:</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for group in groups %}
+                            <span class="badge bg-primary position-relative">
+                                {{ group }}
+                                {% if group not in ['Family', 'Friends', 'Classmates', 'Colleagues', 'Others'] %}
+                                <button type="button" class="btn-close btn-close-white position-absolute top-0 start-100 translate-middle" 
+                                        style="font-size: 8px; padding: 2px;" 
+                                        onclick="deleteGroup('{{ group }}')" 
+                                        title="Delete {{ group }}"></button>
+                                {% endif %}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="addNewGroupFromModal()">Add Group</button>
+                </div>
             </div>
         </div>
-    </form>
-    <h4>Existing Contacts</h4>
-    <table class="table table-bordered table-striped">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Phone</th>
-                <th>Email</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for contact in contacts %}
-            <tr>
-                <td>{{ contact['姓名'] }}</td>
-                <td>{{ contact['電話'] }}</td>
-                <td>{{ contact['信箱'] }}</td>
-                <td>
-                    <form method="post" action="/delete_contact" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete contact {{ contact['姓名'] }}?')">
-                        <input type="hidden" name="email" value="{{ contact['信箱'] }}">
-                        <button type="submit" class="btn btn-danger btn-sm">🗑️ Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="4" class="text-center">No contacts yet</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    
-    <a href="/" class="btn btn-secondary mt-3">Back to Home</a>
+    </div>
+
+    <!-- Group Notification Section -->
+    <div class="notification-section">
+        <h4 class="mb-3">📢 Send Group Notifications</h4>
+        <p class="mb-3">Select groups to send emergency notifications:</p>
+        <div class="row">
+            <div class="col-md-8">
+                <div class="d-flex flex-wrap gap-3">
+                    {% for group in groups %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="{{ group }}" id="group_{{ loop.index }}" name="notification_groups">
+                        <label class="form-check-label" for="group_{{ loop.index }}">
+                            {{ group }} 
+                            {% if contacts_by_group.get(group) %}
+                                <span class="badge bg-primary">{{ contacts_by_group[group]|length }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">0</span>
+                            {% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-warning btn-lg w-100" onclick="sendGroupNotification()" style="display: none;">
+                    🚨 Send Emergency Alert
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-2" onclick="selectAllGroups()" style="display: none;">
+                    ☑️ Select All Groups
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contacts Display by Groups -->
+    {% if contacts_by_group %}
+        {% for group, group_contacts in contacts_by_group.items() %}
+        <div class="group-section">
+            <div class="group-header">
+                <span>{{ group }} ({{ group_contacts|length }} contacts)</span>
+                <div class="group-controls">
+                    <button class="btn btn-sm btn-light" onclick="toggleGroup('{{ group }}')">
+                        <span id="toggle_{{ group }}">👁️ Hide</span>
+                    </button>
+                </div>
+            </div>
+            <div id="contacts_{{ group }}" class="contacts-container">
+                {% for contact in group_contacts %}
+                <div class="contact-card">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <strong>{{ contact['姓名'] }}</strong>
+                        </div>
+                        <div class="col-md-3">
+                            📞 {{ contact['電話'] }}
+                        </div>
+                        <div class="col-md-4">
+                            📧 {{ contact['信箱'] }}
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <form method="post" action="/delete_contact" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete contact {{ contact['姓名'] }}?')">
+                                <input type="hidden" name="email" value="{{ contact['信箱'] }}">
+                                <button type="submit" class="btn btn-danger btn-sm">🗑️ Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-5">
+            <h5 class="text-muted">No contacts yet</h5>
+            <p class="text-muted">Add your first emergency contact above</p>
+        </div>
+    {% endif %}
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Toggle group visibility
+function toggleGroup(groupName) {
+    const container = document.getElementById(`contacts_${groupName}`);
+    const toggle = document.getElementById(`toggle_${groupName}`);
+    
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+        toggle.textContent = '👁️ Hide';
+    } else {
+        container.style.display = 'none';
+        toggle.textContent = '👁️ Show';
+    }
+}
+
+// Select all groups
+function selectAllGroups() {
+    const checkboxes = document.querySelectorAll('input[name="notification_groups"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+}
+
+// Group Management Functions
+function showAddGroupModal() {
+    const modal = new bootstrap.Modal(document.getElementById('addGroupModal'));
+    modal.show();
+    // 清空表單
+    document.getElementById('modal_group_name').value = '';
+    // 設定焦點
+    setTimeout(() => {
+        document.getElementById('modal_group_name').focus();
+    }, 500);
+}
+
+function addNewGroupFromModal() {
+    const groupName = document.getElementById('modal_group_name').value.trim();
+    
+    if (!groupName) {
+        alert('請輸入群組名稱');
+        return;
+    }
+    
+    if (groupName.length > 20) {
+        alert('群組名稱不能超過20個字符');
+        return;
+    }
+    
+    fetch('/add_group', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            group_name: groupName,
+            description: ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('群組新增成功: ' + data.message);
+            // 關閉模態視窗
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addGroupModal'));
+            modal.hide();
+            location.reload(); // 重新載入頁面以更新群組列表
+        } else {
+            alert('新增群組失敗: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('新增群組失敗: ' + error);
+    });
+}
+
+function deleteGroup(groupName) {
+    if (!confirm(`確定要刪除群組 "${groupName}" 嗎？\n此群組中的聯絡人將被移動到 "Others" 群組。`)) {
+        return;
+    }
+    
+    fetch('/delete_group', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            group_name: groupName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('群組刪除成功: ' + data.message);
+            location.reload(); // 重新載入頁面以更新群組列表
+        } else {
+            alert('刪除群組失敗: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('刪除群組失敗: ' + error);
+    });
+}
+
+// Send group notification
+function sendGroupNotification() {
+    const checkboxes = document.querySelectorAll('input[name="notification_groups"]:checked');
+    const selectedGroups = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (selectedGroups.length === 0) {
+        alert('Please select at least one group to send notifications!');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to send emergency notifications to ${selectedGroups.length} group(s): ${selectedGroups.join(', ')}?`)) {
+        return;
+    }
+    
+    // Send AJAX request
+    fetch('/send_group_notification', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            groups: selectedGroups
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Group notification sent successfully!\n\n` +
+                  `Groups: ${data.selected_groups.join(', ')}\n` +
+                  `Total contacts: ${data.total_contacts}\n\n` +
+                  `Email: ${data.email_message}\n` +
+                  `SMS: ${data.sms_message}`);
+            
+            // Uncheck all checkboxes
+            checkboxes.forEach(cb => cb.checked = false);
+        } else {
+            alert('Failed to send group notification: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to send group notification: ' + error);
+    });
+}
+</script>
 </body>
 </html> 

@@ -77,7 +77,37 @@
                         The optimal route to the selected shelter has been planned. Please check the route line on the map.
                     </div>
                     {% endif %}
-                    <button type="button" class="btn btn-danger w-100 mb-2" onclick="sendEmergencyNotification()">📢 Notify All Contacts</button>
+                    <!-- <button type="button" class="btn btn-danger w-100 mb-2" onclick="sendEmergencyNotification()">📢 Notify All Contacts</button> -->
+                    
+                    <!-- Group Notification Section -->
+                    {% if groups and contacts_by_group %}
+                    <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 12px; margin: 10px 0;">
+                        <h6 style="color: #856404; margin-bottom: 10px; font-weight: bold;">📢 Notify by Groups</h6>
+                        <div style="margin-bottom: 10px;">
+                            {% for group in groups %}
+                                {% if contacts_by_group.get(group) %}
+                                <div style="margin-bottom: 5px;">
+                                    <label style="display: flex; align-items: center; font-size: 0.9em; color: #856404;">
+                                        <input type="checkbox" name="emergency_groups" value="{{ group }}" style="margin-right: 8px;">
+                                        {{ group }} 
+                                        <span style="background: #ffc107; color: #212529; padding: 2px 6px; border-radius: 12px; font-size: 0.8em; margin-left: 8px;">
+                                            {{ contacts_by_group[group]|length }}
+                                        </span>
+                                    </label>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <div style="display: flex; gap: 5px;">
+                            <button type="button" class="btn btn-warning btn-sm" onclick="sendGroupEmergencyNotification()" style="flex: 1; font-size: 0.85em;">
+                                🚨 Send to Selected
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAllEmergencyGroups()" style="font-size: 0.85em;">
+                                ☑️ All
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
                     
                     <!-- Email Content Preview Modal -->
                     <div class="modal fade" id="emailPreviewModal" tabindex="-1" aria-labelledby="emailPreviewModalLabel" aria-hidden="true">
@@ -414,6 +444,61 @@ function confirmSendNotification() {
     .catch(error => {
         console.error('Error:', error);
         alert('發生錯誤，請稍後再試');
+    });
+}
+
+// 群組緊急通知功能
+function selectAllEmergencyGroups() {
+    const checkboxes = document.querySelectorAll('input[name="emergency_groups"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+}
+
+function sendGroupEmergencyNotification() {
+    const checkboxes = document.querySelectorAll('input[name="emergency_groups"]:checked');
+    const selectedGroups = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (selectedGroups.length === 0) {
+        alert('請至少選擇一個群組來發送通知！');
+        return;
+    }
+    
+    if (!confirm(`確定要發送緊急通知給 ${selectedGroups.length} 個群組嗎？\n群組：${selectedGroups.join('、')}`)) {
+        return;
+    }
+    
+    // 發送 AJAX 請求
+    fetch('/send_group_notification', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            groups: selectedGroups
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`群組緊急通知發送成功！\n\n` +
+                  `群組：${data.selected_groups.join('、')}\n` +
+                  `聯絡人總數：${data.total_contacts}\n\n` +
+                  `Email：${data.email_message}\n` +
+                  `簡訊：${data.sms_message}`);
+            
+            // 取消選取所有 checkbox
+            checkboxes.forEach(cb => cb.checked = false);
+            
+            // 重新載入頁面以更新狀態
+            location.reload();
+        } else {
+            alert('發送群組通知失敗：' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('發送群組通知失敗：' + error);
     });
 }
 </script>

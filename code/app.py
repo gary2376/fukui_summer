@@ -20,6 +20,7 @@ import openai
 from email_service import create_email_service, DEFAULT_EMAIL_TEMPLATES
 from sms_service import create_sms_service, DEFAULT_SMS_TEMPLATES
 from auth_service import auth_service
+from places_service import create_places_service
 
 # 全域快取福井市路網圖（10 公里，效能更佳）
 G_FUKUI = ox.graph_from_point((36.0652, 136.2216), dist=10000, network_type='walk')
@@ -27,6 +28,147 @@ G_FUKUI = ox.graph_from_point((36.0652, 136.2216), dist=10000, network_type='wal
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # 請改為安全的 key
 app.config['SESSION_COOKIE_PARTITIONED'] = False
+
+# --- Contact Management Functions ---
+def get_custom_groups():
+    """獲取自訂群組列表"""
+    groups_csv = str(Path(__file__).parent.parent / 'dataset' / 'custom_groups.csv')
+    default_groups = ['Family', 'Friends', 'Classmates', 'Colleagues', 'Others']
+    
+    if not os.path.exists(groups_csv):
+        # 如果檔案不存在，創建預設群組檔案
+        create_default_groups_csv(groups_csv)
+        return default_groups
+    
+    try:
+        with open(groups_csv, 'r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            groups = [row['群組名稱'] for row in reader if row.get('群組名稱')]
+            return groups if groups else default_groups
+    except Exception:
+        return default_groups
+
+def create_default_groups_csv(csv_path: str):
+    """創建預設群組CSV檔案"""
+    default_groups = [
+        ('Family', '家庭成員'),
+        ('Friends', '朋友'),
+        ('Classmates', '同學'),
+        ('Colleagues', '同事'),
+        ('Others', '其他')
+    ]
+    
+    with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['群組名稱', '建立時間', '描述'])
+        for group_name, description in default_groups:
+            writer.writerow([group_name, '2024-08-20', description])
+
+def add_custom_group(group_name: str, description: str = ''):
+    """新增自訂群組"""
+    groups_csv = str(Path(__file__).parent.parent / 'dataset' / 'custom_groups.csv')
+    
+    # 檢查群組是否已存在
+    existing_groups = get_custom_groups()
+    if group_name in existing_groups:
+        return False, "群組已存在"
+    
+    # 檢查群組名稱是否有效
+    if not group_name or not group_name.strip():
+        return False, "群組名稱不能為空"
+    
+    if len(group_name.strip()) > 20:
+        return False, "群組名稱不能超過20個字符"
+    
+    try:
+        from datetime import datetime
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        with open(groups_csv, 'a', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([group_name.strip(), current_time, description.strip()])
+        
+        return True, "群組新增成功"
+    except Exception as e:
+        return False, f"新增群組失敗: {str(e)}"
+
+def delete_custom_group(group_name: str):
+    """刪除自訂群組"""
+    groups_csv = str(Path(__file__).parent.parent / 'dataset' / 'custom_groups.csv')
+    
+    # 不能刪除預設群組
+    default_groups = ['Family', 'Friends', 'Classmates', 'Colleagues', 'Others']
+    if group_name in default_groups:
+        return False, "不能刪除預設群組"
+    
+    try:
+        # 讀取現有群組
+        groups_data = []
+        with open(groups_csv, 'r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            groups_data = [row for row in reader if row.get('群組名稱') != group_name]
+        
+        # 重寫檔案
+        with open(groups_csv, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['群組名稱', '建立時間', '描述'])
+            for group in groups_data:
+                writer.writerow([group['群組名稱'], group['建立時間'], group['描述']])
+        
+        # 更新該群組的聯絡人為Others
+        update_contacts_group(group_name, 'Others')
+        
+        return True, "群組刪除成功"
+    except Exception as e:
+        return False, f"刪除群組失敗: {str(e)}"
+
+def update_contacts_group(old_group: str, new_group: str):
+    """更新聯絡人的群組"""
+    contacts_csv = str(Path(__file__).parent.parent / 'dataset' / 'contacts.csv')
+    
+    if not os.path.exists(contacts_csv):
+        return
+    
+    try:
+        # 讀取聯絡人
+        contacts = []
+        with open(contacts_csv, 'r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for contact in reader:
+                if contact.get('群組') == old_group:
+                    contact['群組'] = new_group
+                contacts.append(contact)
+        
+        # 重寫檔案
+        with open(contacts_csv, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['姓名', '電話', '信箱', '群組'])
+            for contact in contacts:
+                writer.writerow([contact['姓名'], contact['電話'], contact['信箱'], contact['群組']])
+    except Exception:
+        pass
+
+def upgrade_contacts_csv(csv_path: str):
+    """升級聯絡人 CSV 檔案格式，新增群組欄位"""
+    if not os.path.exists(csv_path):
+        return
+    
+    # 讀取現有資料
+    contacts = []
+    with open(csv_path, 'r', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        contacts = list(reader)
+    
+    # 重寫檔案，新增群組欄位
+    with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['姓名', '電話', '信箱', '群組'])
+        for contact in contacts:
+            name = contact.get('姓名', '')
+            phone = contact.get('電話', '')
+            email = contact.get('信箱', '')
+            group = contact.get('群組', 'Others')  # 預設群組為「Others」
+            writer.writerow([name, phone, email, group])
 
 # --- Helper Functions ---
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -763,6 +905,29 @@ def index():
     # 數據表格
     display_columns = ['latitude', 'longitude', 'evaspot_name', 'evaspot_capacity', 'evaspot_kind_name'] + [d for d in disaster_columns if d in selected_disasters]
     table_html = filtered_df[display_columns].to_html(classes='table table-striped table-bordered', index=False) if filtered_df is not None else ''
+    # 讀取聯絡人群組資訊（僅在緊急模式下載入以避免效能問題）
+    groups = []
+    contacts_by_group = {}
+    if emergency_mode:
+        groups = get_custom_groups()
+        csv_path = str(Path(__file__).parent.parent / 'dataset' / 'contacts.csv')
+        if os.path.isfile(csv_path):
+            with open(csv_path, 'r', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                contacts_list = list(reader)
+                
+                # 確保所有聯絡人都有群組欄位（向下相容）
+                for contact in contacts_list:
+                    if '群組' not in contact or not contact['群組']:
+                        contact['群組'] = 'Others'
+                
+                # 按群組分類聯絡人
+                for contact in contacts_list:
+                    group = contact.get('群組', 'Others')
+                    if group not in contacts_by_group:
+                        contacts_by_group[group] = []
+                    contacts_by_group[group].append(contact)
+
     return render_template('index.html',
         error=error,
         filtered_df=filtered_df,
@@ -787,7 +952,9 @@ def index():
         login_error=login_error,
         email_test_success=email_test_success,
         email_test_message=email_test_message,
-        user_info=session.get('user_info')
+        user_info=session.get('user_info'),
+        groups=groups,
+        contacts_by_group=contacts_by_group
     )
 
 @app.route('/clear_location')
@@ -880,25 +1047,62 @@ def contacts():
     
     csv_path = str(Path(__file__).parent.parent / 'dataset' / 'contacts.csv')
     contacts: list[dict] = []
+    
+    # 獲取群組類別（包含自訂群組）
+    groups = get_custom_groups()
+    
     # 新增聯絡人
     if request.method == 'POST':
         name: str = request.form.get('name', '').strip()
         phone: str = request.form.get('phone', '').strip()
         email: str = request.form.get('email', '').strip()
+        group: str = request.form.get('group', 'Others').strip()
+        
         if name and phone and email:
             file_exists: bool = os.path.isfile(csv_path)
+            
+            # 如果檔案存在，檢查是否需要升級格式
+            if file_exists:
+                with open(csv_path, 'r', encoding='utf-8') as csvfile:
+                    reader = csv.reader(csvfile)
+                    header = next(reader, [])
+                    if '群組' not in header:
+                        # 需要升級 CSV 格式
+                        upgrade_contacts_csv(csv_path)
+            
             with open(csv_path, 'a', newline='', encoding='utf-8') as csvfile:
                 writer = csv.writer(csvfile)
                 if not file_exists:
-                    writer.writerow(['姓名', '電話', '信箱'])
-                writer.writerow([name, phone, email])
+                    writer.writerow(['姓名', '電話', '信箱', '群組'])
+                writer.writerow([name, phone, email, group])
         return redirect(url_for('contacts'))
+    
     # 讀取聯絡人清單
     if os.path.isfile(csv_path):
         with open(csv_path, 'r', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
-            contacts = list(reader)
-    return render_template('contacts.html', contacts=contacts, user_info=session.get('user_info'))
+            contacts_list = list(reader)
+            
+            # 確保所有聯絡人都有群組欄位（向下相容）
+            for contact in contacts_list:
+                if '群組' not in contact or not contact['群組']:
+                    contact['群組'] = 'Others'
+            
+            contacts = contacts_list
+    
+    # 按群組分類聯絡人
+    contacts_by_group = {}
+    for contact in contacts:
+        group = contact.get('群組', 'Others')
+        if group not in contacts_by_group:
+            contacts_by_group[group] = []
+        contacts_by_group[group].append(contact)
+    
+    return render_template('contacts.html', 
+                         contacts=contacts, 
+                         contacts_by_group=contacts_by_group,
+                         groups=groups,
+                         user_info=session.get('user_info'))
 
 @app.route('/delete_contact', methods=['POST'])
 def delete_contact():
@@ -925,15 +1129,84 @@ def delete_contact():
         # 重新寫入檔案
         with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
             if filtered_contacts:
-                writer = csv.DictWriter(csvfile, fieldnames=['姓名', '電話', '信箱'])
+                # 確定欄位名稱，支援新舊格式
+                fieldnames = ['姓名', '電話', '信箱', '群組']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
+                
+                # 確保每個聯絡人都有群組欄位
+                for contact in filtered_contacts:
+                    if '群組' not in contact or not contact['群組']:
+                        contact['群組'] = 'Others'
+                
                 writer.writerows(filtered_contacts)
             else:
                 # 如果沒有聯絡人了，只寫入標題
                 writer = csv.writer(csvfile)
-                writer.writerow(['姓名', '電話', '信箱'])
+                writer.writerow(['姓名', '電話', '信箱', '群組'])
     
     return redirect(url_for('contacts'))
+
+@app.route('/add_group', methods=['POST'])
+def add_group():
+    """新增自訂群組"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': '請先登入'})
+    
+    try:
+        data = request.get_json()
+        group_name = data.get('group_name', '').strip()
+        description = data.get('description', '').strip()
+        
+        success, message = add_custom_group(group_name, description)
+        
+        if success:
+            return jsonify({
+                'success': True, 
+                'message': message,
+                'groups': get_custom_groups()
+            })
+        else:
+            return jsonify({'success': False, 'error': message})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'新增群組失敗: {str(e)}'})
+
+@app.route('/delete_group', methods=['POST'])
+def delete_group():
+    """刪除自訂群組"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': '請先登入'})
+    
+    try:
+        data = request.get_json()
+        group_name = data.get('group_name', '').strip()
+        
+        success, message = delete_custom_group(group_name)
+        
+        if success:
+            return jsonify({
+                'success': True, 
+                'message': message,
+                'groups': get_custom_groups()
+            })
+        else:
+            return jsonify({'success': False, 'error': message})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'刪除群組失敗: {str(e)}'})
+
+@app.route('/get_groups', methods=['GET'])
+def get_groups():
+    """獲取所有群組"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': '請先登入'})
+    
+    try:
+        groups = get_custom_groups()
+        return jsonify({'success': True, 'groups': groups})
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'獲取群組失敗: {str(e)}'})
 
 @app.route('/notify_contacts', methods=['POST'])
 def notify_contacts():
@@ -1474,7 +1747,7 @@ def first_aid():
     categories_count = 0
     
     for item in items:
-        category = item.get('category', '其他')
+        category = item.get('category', 'Others')
         if category not in items_by_category:
             items_by_category[category] = []
             categories_count += 1
@@ -1937,6 +2210,109 @@ def send_emergency_notification():
             'error': str(e)
         })
 
+@app.route('/send_group_notification', methods=['POST'])
+def send_group_notification():
+    """按群組發送通知"""
+    try:
+        selected_groups = request.json.get('groups', [])
+        if not selected_groups:
+            return jsonify({
+                'success': False,
+                'error': 'Please select at least one group'
+            })
+        
+        csv_path = str(Path(__file__).parent.parent / 'dataset' / 'contacts.csv')
+        all_contacts = []
+        if os.path.isfile(csv_path):
+            with open(csv_path, 'r', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                all_contacts = list(reader)
+        
+        # 篩選指定群組的聯絡人
+        filtered_contacts = []
+        for contact in all_contacts:
+            contact_group = contact.get('群組', 'Others')
+            if contact_group in selected_groups:
+                filtered_contacts.append(contact)
+        
+        if not filtered_contacts:
+            return jsonify({
+                'success': False,
+                'error': f'No contacts found in selected groups: {", ".join(selected_groups)}'
+            })
+        
+        # 取得目前經緯度與最近避難所
+        user_location = session.get('user_location')
+        latlng = ''
+        nearest_shelter = ''
+        nearest_distance = None
+        
+        if user_location:
+            latlng = f"{user_location[0]:.5f},{user_location[1]:.5f}"
+            db_path = str(Path(__file__).parent.parent / 'dataset' / 'shelters.db')
+            df = load_shelter_data(db_path)
+            emergency_disaster = session.get('emergency_disaster')
+            if df is not None and emergency_disaster in df.columns:
+                filtered_df = df[df[emergency_disaster] == 1].copy()
+                if not filtered_df.empty:
+                    filtered_df['distance'] = filtered_df.apply(lambda row: calculate_distance(user_location[0], user_location[1], row['latitude'], row['longitude']), axis=1)
+                    nearest_row = filtered_df.sort_values('distance').iloc[0]
+                    nearest_shelter = nearest_row['evaspot_name']
+                    nearest_distance = nearest_row['distance']
+        
+        # 發送 Email
+        template = DEFAULT_EMAIL_TEMPLATES['emergency']
+        user_info = session.get('user_info')
+        email_success_count = 0
+        
+        if user_info:
+            email_service = create_email_service('user', user_info)
+            for contact in filtered_contacts:
+                subject = template['subject'].format(name=contact['姓名'], latlng=latlng, nearest_shelter=nearest_shelter)
+                
+                if nearest_distance is not None and nearest_distance > 10:
+                    message = "I am safe now. The nearest shelter is over 10km away, so no evacuation is needed for now."
+                    html = template['html'].format(name=contact['姓名'], latlng=latlng, nearest_shelter=nearest_shelter)
+                else:
+                    message = template['message'].format(name=contact['姓名'], latlng=latlng, nearest_shelter=nearest_shelter)
+                    html = template['html'].format(name=contact['姓名'], latlng=latlng, nearest_shelter=nearest_shelter)
+                
+                result = email_service.send_email(contact['信箱'], subject, message, html)
+                if result:
+                    email_success_count += 1
+        
+        # 發送簡訊
+        sms_message = f"Emergency Alert from {{name}}: I need help! Current location: {latlng}. Nearest shelter: {nearest_shelter}."
+        
+        sms_service = create_sms_service()
+        sms_results = sms_service.send_bulk_sms(filtered_contacts, sms_message)
+        sms_success_count = sum(1 for result in sms_results if result['success'])
+        
+        # 組裝回應訊息
+        if user_info:
+            email_message = f"Successfully sent Email to {email_success_count}/{len(filtered_contacts)} contacts in groups: {', '.join(selected_groups)}"
+        else:
+            email_message = "Please login first to send emails"
+        
+        if sms_results:
+            sms_message = f"Successfully sent SMS to {sms_success_count}/{len(filtered_contacts)} contacts (simulation mode)"
+        else:
+            sms_message = "SMS service not available"
+        
+        return jsonify({
+            'success': True,
+            'email_message': email_message,
+            'sms_message': sms_message,
+            'total_contacts': len(filtered_contacts),
+            'selected_groups': selected_groups
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
 # --- 飲食卡功能 ---
 def init_diet_database() -> None:
     """初始化飲食卡資料庫"""
@@ -2016,7 +2392,7 @@ def diet_card() -> str:
                     'medical_notes': existing_record[7] or ''
                 }
                 
-                # 只更新有提交的欄位，保留其他欄位的現有值
+                # 只更新有提交的欄位，保留Others欄位的現有值
                 name = request.form.get('name', '').strip() or current_data['name']
                 age = request.form.get('age', '').strip() or current_data['age']
                 blood_type = request.form.get('blood_type', '').strip() or current_data['blood_type']
@@ -2211,6 +2587,64 @@ def delete_preference() -> str:
         
     except Exception as e:
         return redirect(url_for('diet_card', error_message=f'刪除失敗：{str(e)}'))
+
+@app.route('/first_aid/find_nearby_stores', methods=['POST'])
+def find_nearby_stores():
+    """搜尋附近店家功能"""
+    try:
+        # 獲取用戶位置
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': '無法獲取請求資料'})
+        
+        lat = data.get('latitude')
+        lng = data.get('longitude')
+        
+        if not lat or not lng:
+            return jsonify({'success': False, 'error': '無法獲取位置資訊'})
+        
+        # 檢查位置是否合理（基本範圍檢查）
+        if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+            return jsonify({'success': False, 'error': '位置座標不合理'})
+        
+        # 獲取用戶的急難救助包物品
+        csv_path = str(Path(__file__).parent.parent / 'dataset' / 'first_aid_items.csv')
+        user_items = []
+        
+        if os.path.isfile(csv_path):
+            try:
+                df = pd.read_csv(csv_path, encoding='utf-8')
+                user_items = df.to_dict('records')
+            except Exception as e:
+                print(f"讀取急難救助包物品時發生錯誤: {e}")
+        
+        # 建立 Places 服務實例
+        places_service = create_places_service()
+        
+        # 獲取物品店家推薦
+        item_recommendations = places_service.get_item_store_recommendations(user_items)
+        
+        # 搜尋附近店家
+        nearby_stores = places_service.get_nearby_stores(lat, lng, radius=2000)
+        
+        if not nearby_stores['success']:
+            return jsonify({'success': False, 'error': nearby_stores.get('error', '搜尋附近店家失敗')})
+        
+        # 結合物品推薦和附近店家資訊
+        result = {
+            'success': True,
+            'user_location': {'latitude': lat, 'longitude': lng},
+            'item_recommendations': item_recommendations['item_recommendations'],
+            'recommended_store_types': item_recommendations['recommended_store_types'],
+            'store_type_names': item_recommendations['store_type_names'],
+            'nearby_stores': nearby_stores['data'],
+            'search_radius': nearby_stores['radius']
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'搜尋過程發生錯誤: {str(e)}'})
 
 if __name__ == '__main__':
     app.run(debug=True) 

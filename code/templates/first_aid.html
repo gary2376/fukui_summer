@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <title>Emergency Kit Management</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script async defer 
+            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCR_HQToL45fxDqbtoiqGM21NC6auBuOMc&callback=initializeMapAPI"
+            onerror="handleMapLoadError()"></script>
     <style>
         body {
             background-color: #f8f9fa;
@@ -140,12 +143,35 @@
             border-radius: 8px;
             padding: 15px;
         }
+        .store-item {
+            cursor: pointer;
+            border: 1px solid #dee2e6 !important;
+            transition: all 0.2s ease;
+        }
+        .store-item:hover {
+            background-color: #e9ecef !important;
+            border-color: #007bff !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .store-categories {
+            max-height: calc(80vh - 200px);
+            overflow-y: auto;
+        }
+        .alert-sm {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+        }
     </style>
 </head>
 <body>
 <div class="main-container">
     <div class="container-fluid">
-        <h2 class="mb-4 text-center">🏥 Emergency Kit Management</h2>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <a href="/" class="btn btn-secondary btn-lg">🏠 Back to Home</a>
+            <h2 class="mb-0 flex-grow-1 text-center">🏥 Emergency Kit Management</h2>
+            <div style="width: 140px;"></div> <!-- Spacer for centering -->
+        </div>
         
         <div class="row">
             <!-- Left panel: Disaster selection and existing items -->
@@ -259,6 +285,17 @@
                                 📊 View Preparation Status
                             </button>
                         </div>
+                        <div class="mt-3">
+                            <h6 class="mb-2">🏪 Find Nearby Stores</h6>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button class="btn btn-outline-primary btn-sm" onclick="findNearbyStores('actual')">
+                                    🏪 Search Nearby Store
+                                </button>
+                                <button class="btn btn-outline-success btn-sm" onclick="findNearbyStores('fukui')" style="display: none;">
+                                    🎯 Use Fukui Virtual Location
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     {% else %}
                     <div class="text-center text-muted py-4">
@@ -331,10 +368,79 @@
             </div>
         </div>
 
-        <!-- Back to home button -->
-        <div class="text-center mt-4">
-            <a href="/" class="btn btn-secondary">Back to Home</a>
+        <!-- Nearby Stores Modal -->
+        <div class="modal fade" id="nearbyStoresModal" tabindex="-1" aria-labelledby="nearbyStoresModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-fullscreen">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="nearbyStoresModalLabel">🏪 Nearby Stores & Map</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <div class="row g-0" style="height: 80vh;">
+                            <!-- 左側店家列表 -->
+                            <div class="col-md-4" style="background-color: #f8f9fa; border-right: 1px solid #dee2e6;">
+                                <div class="p-3 h-100 overflow-auto">
+                                    <div id="storeListContent">
+                                        <div class="text-center">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">搜尋中...</span>
+                                            </div>
+                                            <p class="mt-2">正在搜尋附近店家...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 右側地圖 -->
+                            <div class="col-md-8 position-relative">
+                                <!-- Map Legend -->
+                                <div class="position-absolute top-0 end-0 mt-3 me-3" style="z-index: 1000; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border: 1px solid #ddd;">
+                                    <h6 class="mb-2 fw-bold" style="font-size: 0.9em;">🗺️ Map Legend</h6>
+                                    <div class="d-flex flex-column gap-1">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div style="width: 12px; height: 12px; background-color: #28a745; border-radius: 50%; border: 1px solid #fff;"></div>
+                                            <small style="font-size: 0.8em;">Your Location</small>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div style="width: 12px; height: 12px; background-color: #007bff; border-radius: 50%; border: 1px solid #fff;"></div>
+                                            <small style="font-size: 0.8em;">🏪 Convenience Store</small>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div style="width: 12px; height: 12px; background-color: #dc3545; border-radius: 50%; border: 1px solid #fff;"></div>
+                                            <small style="font-size: 0.8em;">🛒 Supermarket</small>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div style="width: 12px; height: 12px; background-color: #6f42c1; border-radius: 50%; border: 1px solid #fff;"></div>
+                                            <small style="font-size: 0.8em;">💊 Pharmacy</small>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div style="width: 12px; height: 12px; background-color: #fd7e14; border-radius: 50%; border: 1px solid #fff;"></div>
+                                            <small style="font-size: 0.8em;">🔧 Hardware Store</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div id="storeMap" style="width: 100%; height: 100%; min-height: 400px;">
+                                    <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                                        <div class="text-center">
+                                            <div class="spinner-border text-secondary" role="status">
+                                                <span class="visually-hidden">載入地圖中...</span>
+                                            </div>
+                                            <p class="mt-2">準備載入地圖...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <small class="text-muted me-auto">Click on stores in the left panel to highlight them on the map</small>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
         </div>
+
     </div>
 </div>
 
@@ -677,6 +783,480 @@ function editQuantity(itemId, itemName, currentQuantity) {
             alert('Update failed: ' + error);
         });
     }
+}
+
+// Find nearby stores function with location mode selection
+function findNearbyStores(locationType = 'actual') {
+    // 顯示 Modal
+    const modal = new bootstrap.Modal(document.getElementById('nearbyStoresModal'));
+    modal.show();
+    
+    // Reset left content to loading state
+    let loadingMessage = locationType === 'actual' ? 'Getting your actual location...' : 'Using Fukui virtual location...';
+    document.getElementById('storeListContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Searching...</span>
+            </div>
+            <p class="mt-2">${loadingMessage}</p>
+        </div>
+    `;
+    
+    // Reset right map to loading state
+    document.getElementById('storeMap').innerHTML = `
+        <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+            <div class="text-center">
+                <div class="spinner-border text-secondary" role="status">
+                    <span class="visually-hidden">Loading map...</span>
+                </div>
+                <p class="mt-2">Preparing to load map...</p>
+            </div>
+        </div>
+    `;
+    
+    if (locationType === 'fukui') {
+        // Use Fukui virtual location
+        const fukuiLocations = [
+            {lat: 36.0652, lng: 136.2216, name: 'Fukui City Center'},
+            {lat: 36.0618, lng: 136.2134, name: 'Near Fukui Station'},
+            {lat: 36.0725, lng: 136.2189, name: 'Fukui Castle Ruins'},
+            {lat: 36.0441, lng: 136.2077, name: 'Near University of Fukui'},
+            {lat: 36.0789, lng: 136.2415, name: 'Near Asuwa-yama Park'},
+            {lat: 36.0521, lng: 136.1943, name: 'West Fukui'},
+            {lat: 36.0783, lng: 136.2005, name: 'East Fukui'}
+        ];
+        
+        // Randomly select a Fukui location
+        const randomLocation = fukuiLocations[Math.floor(Math.random() * fukuiLocations.length)];
+        
+        setTimeout(() => {
+            searchNearbyStores(randomLocation.lat, randomLocation.lng, `Virtual Location: ${randomLocation.name}`);
+        }, 1000);
+        
+    } else {
+        // Use actual location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    searchNearbyStores(latitude, longitude, 'Your Actual Location');
+                },
+                function(error) {
+                    let errorMessage = 'Unable to get location information';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Location access denied, please allow location access permissions';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Location information unavailable';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Getting location information timed out';
+                            break;
+                    }
+                    displayError(errorMessage);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                }
+            );
+        } else {
+            displayError('Your browser does not support geolocation');
+        }
+    }
+}
+
+// Common function for searching nearby stores
+function searchNearbyStores(latitude, longitude, locationDescription) {
+    // Update left loading message
+    document.getElementById('storeListContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Searching...</span>
+            </div>
+            <p class="mt-2">Searching for nearby stores...</p>
+            <small class="text-muted">Location: ${locationDescription}</small>
+        </div>
+    `;
+    
+    // 發送 AJAX 請求搜尋附近店家
+    fetch('/first_aid/find_nearby_stores', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            latitude: latitude,
+            longitude: longitude,
+            location_description: locationDescription
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 將位置描述加入回應資料
+            data.location_description = locationDescription;
+            displayNearbyStores(data);
+        } else {
+            displayError(data.error || 'Failed to search nearby stores');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        displayError('Network error, please try again later');
+    });
+}
+
+// 全域變數儲存地圖和標記
+let storeMap = null;
+let storeMarkers = [];
+let isGoogleMapsLoaded = false;
+
+// Google Maps API 初始化回調
+function initializeMapAPI() {
+    isGoogleMapsLoaded = true;
+    console.log('Google Maps API loaded successfully');
+}
+
+// Google Maps API 載入錯誤處理
+function handleMapLoadError() {
+    console.error('Failed to load Google Maps API script');
+    isGoogleMapsLoaded = false;
+    
+    // 如果有打開的地圖容器，顯示錯誤信息
+    const mapContainer = document.getElementById('storeMap');
+    if (mapContainer) {
+        mapContainer.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center h-100 text-danger">
+                <div class="text-center">
+                    <h6>⚠️ Google Maps API Failed to Load</h6>
+                    <p class="mb-2">Unable to load mapping service</p>
+                    <small class="text-muted">Please check your internet connection and try again</small><br>
+                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="location.reload()">
+                        🔄 Reload Page
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// 顯示附近店家結果（新版左右分欄）
+function displayNearbyStores(data) {
+    // 顯示左側店家列表
+    displayStoreList(data);
+    
+    // 顯示右側地圖
+    displayStoreMap(data);
+}
+
+// 顯示左側店家列表
+function displayStoreList(data) {
+    const content = document.getElementById('storeListContent');
+    
+    let html = `
+        <div class="mb-3">
+            <div class="alert alert-info alert-sm">
+                <strong>📍 ${data.location_description || 'Unknown Location'}</strong><br>
+                <small>Coordinates: ${data.user_location.latitude.toFixed(4)}, ${data.user_location.longitude.toFixed(4)}</small><br>
+                <small>Range: ${data.search_radius}m</small>
+            </div>
+        </div>
+    `;
+    
+    // Item recommendation section
+    if (Object.keys(data.item_recommendations).length > 0) {
+        html += `
+            <div class="mb-3">
+                <h6 class="mb-2">📦 Shopping Suggestions</h6>
+                <div class="small">
+        `;
+        
+        for (const [itemName, storeTypes] of Object.entries(data.item_recommendations)) {
+            html += `
+                <div class="mb-1 p-2 border rounded bg-light">
+                    <strong>${itemName}:</strong><br>
+                    ${storeTypes.map(store => `<span class="badge bg-secondary me-1">${store}</span>`).join('')}
+                </div>
+            `;
+        }
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    // 店家分類列表
+    html += `<div class="store-categories">`;
+    
+    // 定義店家類型圖標
+    const storeIcons = {
+        'convenience_store': '🏪',
+        'supermarket': '🛒',
+        'pharmacy': '💊',
+        'hardware_store': '🔧'
+    };
+    
+    for (const [storeType, storeInfo] of Object.entries(data.nearby_stores)) {
+        const icon = storeIcons[storeType] || '🏪';
+        html += `
+            <div class="mb-3">
+                <div class="d-flex align-items-center mb-2">
+                    <span class="me-2" style="font-size: 1.2em;">${icon}</span>
+                    <h6 class="mb-0">${storeInfo.name}</h6>
+                    <span class="badge bg-primary ms-auto">${storeInfo.places.length}</span>
+                </div>
+        `;
+        
+        if (storeInfo.places.length > 0) {
+            for (const [index, place] of storeInfo.places.slice(0, 5).entries()) {
+                const rating = place.rating ? place.rating.toFixed(1) : 'N/A';
+                const distance = (place.distance / 1000).toFixed(2);
+                const openStatus = place.opening_hours === true ? '🟢' : 
+                                place.opening_hours === false ? '🔴' : '❓';
+                
+                html += `
+                    <div class="store-item border rounded p-2 mb-2 cursor-pointer" 
+                         onclick="highlightStoreOnMap('${storeType}_${index}')" 
+                         onmouseover="this.style.backgroundColor='#e9ecef'" 
+                         onmouseout="this.style.backgroundColor='white'"
+                         style="background-color: white; transition: background-color 0.2s;">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div style="flex: 1;">
+                                <strong style="font-size: 0.9em;">${place.name}</strong><br>
+                                <small class="text-muted">${place.address}</small><br>
+                                <small>${openStatus} ⭐ ${rating} ⚡ ${distance}km</small>
+                            </div>
+                            <div class="text-end">
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${place.location.lat},${place.location.lng}" 
+                                   target="_blank" class="btn btn-outline-primary btn-sm" style="font-size: 0.75em;"
+                                   onclick="event.stopPropagation();">
+                                    🧭
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            html += `<p class="text-muted small mb-0">No ${storeInfo.name} found nearby</p>`;
+        }
+        
+        html += `</div>`;
+    }
+    
+    html += `</div>`;
+    
+    content.innerHTML = html;
+}
+
+// 顯示右側 Google 地圖
+function displayStoreMap(data) {
+    const mapContainer = document.getElementById('storeMap');
+    
+    // 檢查 Google Maps API 是否可用
+    if (!window.google || !window.google.maps) {
+        mapContainer.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                <div class="text-center">
+                    <div class="spinner-border text-warning" role="status">
+                        <span class="visually-hidden">Loading Google Maps...</span>
+                    </div>
+                    <p class="mt-2">Loading Google Maps...</p>
+                    <small class="text-muted">This may take a few moments...</small>
+                </div>
+            </div>
+        `;
+        
+        let retryCount = 0;
+        const maxRetries = 15; // 15秒超時
+        
+        // 每秒檢查一次 Google Maps 是否載入完成
+        const checkMapsLoaded = setInterval(() => {
+            retryCount++;
+            
+            if (window.google && window.google.maps) {
+                clearInterval(checkMapsLoaded);
+                isGoogleMapsLoaded = true;
+                console.log('Google Maps API loaded successfully');
+                initializeStoreMap(data);
+            } else if (retryCount >= maxRetries) {
+                clearInterval(checkMapsLoaded);
+                console.error('Google Maps API failed to load after', maxRetries, 'seconds');
+                mapContainer.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-center h-100 text-danger">
+                        <div class="text-center">
+                            <h6>⚠️ Map Loading Failed</h6>
+                            <p class="mb-2">Unable to load Google Maps</p>
+                            <small class="text-muted">Possible causes:</small><br>
+                            <small class="text-muted">• Network connection issues</small><br>
+                            <small class="text-muted">• Google Maps API key issues</small><br>
+                            <small class="text-muted">• Browser blocking external scripts</small><br>
+                            <button class="btn btn-sm btn-outline-primary mt-2" onclick="location.reload()">
+                                🔄 Retry
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }, 1000);
+        
+        return;
+    }
+    
+    // Google Maps API 已載入，直接初始化地圖
+    isGoogleMapsLoaded = true;
+    initializeStoreMap(data);
+}
+
+// 初始化 Google 地圖
+function initializeStoreMap(data) {
+    const mapContainer = document.getElementById('storeMap');
+    mapContainer.innerHTML = ''; // 清空容器
+    
+    try {
+        // 建立地圖
+        const center = {
+            lat: data.user_location.latitude, 
+            lng: data.user_location.longitude
+        };
+        
+        storeMap = new google.maps.Map(mapContainer, {
+            zoom: 14,
+            center: center,
+            mapTypeId: google.maps.MapTypeId.ROADMAP
+        });
+        
+        // 清除舊標記
+        storeMarkers.forEach(marker => marker.setMap(null));
+        storeMarkers = [];
+        
+        // 添加用戶位置標記
+        const userMarker = new google.maps.Marker({
+            position: center,
+            map: storeMap,
+            title: data.location_description || '您的位置',
+            icon: {
+                url: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png'
+            }
+        });
+        storeMarkers.push(userMarker);
+        
+        // 定義店家類型顏色
+        const storeColors = {
+            'convenience_store': 'blue',
+            'supermarket': 'red', 
+            'pharmacy': 'purple',
+            'hardware_store': 'orange'
+        };
+        
+        // 添加店家標記
+        for (const [storeType, storeInfo] of Object.entries(data.nearby_stores)) {
+            const color = storeColors[storeType] || 'red';
+            
+            storeInfo.places.forEach((place, index) => {
+                const marker = new google.maps.Marker({
+                    position: {lat: place.location.lat, lng: place.location.lng},
+                    map: storeMap,
+                    title: place.name,
+                    icon: {
+                        url: `https://maps.google.com/mapfiles/ms/icons/${color}-dot.png`
+                    }
+                });
+                
+                // 添加資訊視窗
+                const rating = place.rating ? place.rating.toFixed(1) : 'N/A';
+                const distance = (place.distance / 1000).toFixed(2);
+                const openStatus = place.opening_hours === true ? '🟢 Open' : 
+                                place.opening_hours === false ? '🔴 Closed' : '❓ Unknown';
+                
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div style="max-width: 200px;">
+                            <h6>${place.name}</h6>
+                            <p class="mb-1"><small>${place.address}</small></p>
+                            <p class="mb-1"><small>⭐ ${rating} | ${distance} km</small></p>
+                            <p class="mb-1"><small>${openStatus}</small></p>
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${place.location.lat},${place.location.lng}" 
+                               target="_blank" class="btn btn-primary btn-sm">Navigate</a>
+                        </div>
+                    `
+                });
+                
+                marker.addListener('click', () => {
+                    infoWindow.open(storeMap, marker);
+                });
+                
+                // 儲存標記供後續使用
+                marker.storeType = storeType;
+                marker.storeIndex = index;
+                marker.storeId = `${storeType}_${index}`;
+                
+                storeMarkers.push(marker);
+            });
+        }
+        
+    } catch (error) {
+        console.error('地圖初始化失敗:', error);
+        mapContainer.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center h-100 text-danger">
+                <div class="text-center">
+                    <h6>⚠️ Map Initialization Failed</h6>
+                    <p>Error: ${error.message}</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// 在地圖上高亮顯示特定店家
+function highlightStoreOnMap(storeId) {
+    if (!storeMap || storeMarkers.length === 0) return;
+    
+    // 重置所有標記大小
+    storeMarkers.forEach(marker => {
+        if (marker.storeId) {
+            marker.setAnimation(null);
+        }
+    });
+    
+    // 找到對應的標記並高亮
+    const targetMarker = storeMarkers.find(marker => marker.storeId === storeId);
+    if (targetMarker) {
+        // 設置動畫效果
+        targetMarker.setAnimation(google.maps.Animation.BOUNCE);
+        
+        // 將地圖中心移到該標記
+        storeMap.panTo(targetMarker.getPosition());
+        
+        // 2秒後停止動畫
+        setTimeout(() => {
+            targetMarker.setAnimation(null);
+        }, 2000);
+    }
+}
+
+// Display error messages
+function displayError(message) {
+    document.getElementById('storeListContent').innerHTML = `
+        <div class="alert alert-danger">
+            <h6>❌ Search Failed</h6>
+            <p class="mb-0">${message}</p>
+        </div>
+    `;
+    
+    document.getElementById('storeMap').innerHTML = `
+        <div class="d-flex align-items-center justify-content-center h-100 text-danger">
+            <div class="text-center">
+                <h6>⚠️ Unable to Load Map</h6>
+                <p>Search Failed</p>
+            </div>
+        </div>
+    `;
 }
 
 // Execute when page loads
