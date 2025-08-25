@@ -12,6 +12,7 @@ The Fukui Emergency Preparedness System is a comprehensive disaster response and
 
 The system implements a three-tier web application architecture with Flask serving as the central orchestrator between frontend interfaces, backend services, and data storage layers. 
 
+<img width="1266" height="573" alt="截圖 2025-08-26 03 54 48" src="https://github.com/user-attachments/assets/3ebb0f52-5efb-4402-bb74-d98fa336d416" />
 
 
 ## Core Functional Modules
@@ -94,25 +95,8 @@ Supports multiple email providers for emergency notifications:
 
 Complete workflow during disaster scenarios:
 
-```mermaid
-sequenceDiagram
-    participant User as "User"
-    participant App as "Flask Application"
-    participant FloodService as "Flood Path Service"
-    participant EmailSvc as "Email Service"
-    
-    User->>App: Activate Emergency Mode
-    App->>App: Generate Virtual GPS Location
-    App->>FloodService: Check Flood Risk Areas
-    FloodService-->>App: Return Hazard Area Polygons
-    App->>App: Calculate Safe Route
-    App-->>User: Display Emergency Dashboard
-    
-    User->>App: Send Emergency Notification
-    App->>EmailSvc: Send Bulk Emails
-    EmailSvc-->>App: Delivery Status
-    App-->>User: Notification Confirmation
-```
+<img width="975" height="744" alt="截圖 2025-08-26 03 57 24" src="https://github.com/user-attachments/assets/17d75c0d-0152-4533-a928-24824b51d72b" />
+
 
 ## Technical Dependencies and Deployment
 
